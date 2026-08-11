@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'merlin-*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#merlin-}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Release tag: $TAG, version: $VERSION"
+
+      - name: Build merlin tar.gz packages
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          cd merlin
+
+          tar -czf "songloft-SWRT-${VERSION}.tar.gz" songloft-SWRT
+          tar -czf "songloft-koolshare-${VERSION}.tar.gz" songloft-koolshare
+
+          mv songloft-SWRT-${VERSION}.tar.gz songloft-koolshare-${VERSION}.tar.gz ..
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "songloft-for-router ${{ steps.version.outputs.tag }}"
+          body: |
+            ## 梅林（Merlin）离线安装包
+
+            - `songloft-SWRT-${{ steps.version.outputs.version }}.tar.gz`：适用于 SWRTdev 软件中心
+            - `songloft-koolshare-${{ steps.version.outputs.version }}.tar.gz`：适用于 Koolshare 软件中心
+
+            安装方式请参考 [梅林安装文档](docs/cn/merlin.md)。
+          files: |
+            songloft-SWRT-${{ steps.version.outputs.version }}.tar.gz
+            songloft-koolshare-${{ steps.version.outputs.version }}.tar.gz
+          draft: false
+          prerelease: false
