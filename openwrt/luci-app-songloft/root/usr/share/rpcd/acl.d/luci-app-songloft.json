@@ -1,0 +1,17 @@
+{
+	"luci-app-songloft": {
+		"description": "Grant access to LuCI app songloft",
+		"read": {
+			"uci": ["songloft"],
+			"file": {
+				"/etc/init.d/songloft": ["exec"]
+			}
+		},
+		"write": {
+			"uci": ["songloft"],
+			"file": {
+				"/etc/init.d/songloft": ["exec"]
+			}
+		}
+	}
+}

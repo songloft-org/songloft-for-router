@@ -1,0 +1,30 @@
+<script type="text/javascript">//<![CDATA[
+XHR.poll(3, '<%=url([[admin]], [[services]], [[songloft]], [[status]])%>', null,
+	function(x, data) {
+		var tb = document.getElementById('songloft_status');
+		if (data && tb) {
+			if (data.running) {
+				var links = '<em><b><font color="green"><%:SongLoft RUNNING%></font></b></em>' +
+					'<input class="cbi-button cbi-button-action mar-10" type="button" value="<%:Open Web Interface%>" onclick="SongLoftUI();" />';
+				tb.innerHTML = links;
+			} else {
+				tb.innerHTML = '<em><b><font color="red"><%:SongLoft NOT RUNNING%></font></b></em>';
+			}
+		}
+	}
+);
+
+function SongLoftUI() {
+	var port = '<%=luci.sys.exec("uci -q get songloft.@songloft[0].listen_port"):gsub("^%s*(.-)%s*$", "%1")%>' || '58091';
+	var host = window.location.hostname;
+	window.open('http://' + host + ':' + port, '_blank');
+}
+//]]>
+</script>
+<style>.mar-10 { margin-left: 20px; }</style>
+<fieldset class="cbi-section">
+	<legend><%:Status%></legend>
+	<p id="songloft_status">
+		<em><%:Collecting data...%></em>
+	</p>
+</fieldset>
