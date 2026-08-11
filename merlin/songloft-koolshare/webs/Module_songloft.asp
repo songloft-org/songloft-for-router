@@ -46,6 +46,22 @@
         .songloft_popup_head { padding: 10px 12px; font-size: 16px; font-weight: 700; color: #99FF00; text-align: center; }
         .songloft_popup_body { padding: 0 12px 12px 12px; }
         #log_text { background: #000 !important; color: #fff !important; border: 1px solid #111 !important; }
+        .songloft_btn {
+                border: 1px solid #222;
+                background: linear-gradient(to bottom, #003333 0%, #000000 100%);
+                font-size: 10pt;
+                color: #fff;
+                padding: 5px 10px;
+                border-radius: 5px;
+                cursor: pointer;
+                display: none;
+                margin-left: 10px;
+        }
+        .songloft_btn:hover {
+                border: 1px solid #222;
+                background: linear-gradient(to bottom, #27c9c9 0%, #279fd9 100%);
+                color: #fff;
+        }
 </style>
 <script>
 var dbus = {};
@@ -240,6 +256,7 @@ function check_status() {
         if (statusTimer) { clearTimeout(statusTimer); statusTimer = null; }
         if (dbus["songloft_enable"] != "1") {
                 E("songloft_status").innerHTML = "未启用";
+                E("btn_web").style.display = "none";
                 return;
         }
         var id = parseInt(Math.random() * 100000000);
@@ -248,14 +265,25 @@ function check_status() {
                 type: "POST", url: "/_api/", async: true,
                 data: JSON.stringify(postData), dataType: "json",
                 success: function(response) {
-                        try { E("songloft_status").innerHTML = response.result || ""; } catch(e) {}
+                        var result = response.result || "";
+                        try { E("songloft_status").innerHTML = result; } catch(e) {}
+                        E("btn_web").style.display = (result.indexOf("运行中") !== -1) ? "inline-block" : "none";
                         statusTimer = setTimeout(check_status, 5000);
                 },
                 error: function(){
                         E("songloft_status").innerHTML = "获取运行状态失败";
+                        E("btn_web").style.display = "none";
                         statusTimer = setTimeout(check_status, 8000);
                 }
         });
+}
+
+function openWebInterface() {
+        var port = $.trim(E("songloft_listen_port").value || "58091");
+        var basePath = $.trim(E("songloft_base_path").value || "");
+        if (basePath && basePath.charAt(0) !== "/") { basePath = "/" + basePath; }
+        var url = "http://" + window.location.hostname + ":" + port + basePath;
+        window.open(url, "_blank");
 }
 </script>
 </head>
@@ -318,7 +346,10 @@ function check_status() {
                                                                                         </tr>
                                                                                         <tr id="tr_status">
                                                                                                 <th>运行状态</th>
-                                                                                                <td><span id="songloft_status">加载中...</span></td>
+                                                                                                <td>
+                                                                                                        <span id="songloft_status">加载中...</span>
+                                                                                                        <a id="btn_web" class="songloft_btn" href="javascript:void(0);" onclick="openWebInterface()">打开 WEB 界面</a>
+                                                                                                </td>
                                                                                         </tr>
                                                                                         <tr id="tr_port">
                                                                                                 <th>监听端口<br/><span class="hint-color" style="font-weight:normal;font-size:11px;">环境变量：LISTEN_PORT</span></th>
