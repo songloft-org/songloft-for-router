@@ -5,11 +5,11 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=songloft
-PKG_VERSION:=2.11.3
+PKG_VERSION:=2.11.4
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_VERSION:=cf3e19842080ab62444ffa2a594ca5b4ccc65248
+PKG_SOURCE_VERSION:=v$(PKG_VERSION)
 PKG_SOURCE_URL:=https://github.com/songloft-org/songloft.git
 PKG_MIRROR_HASH:=skip
 
