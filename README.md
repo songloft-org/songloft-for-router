@@ -11,7 +11,7 @@
 
 ## 安装文档
 
-- [梅林（Merlin）安装与使用文档](docs/cn/merlin.md)
+- [梅林（Merlin）安装与使用文档](docs/cn/merlin.md) （⚠️ 只在SWRT下面测试通过）
 - [Entware 安装与使用文档](docs/cn/entware.md)
 - [OpenWrt 安装与使用文档](docs/cn/openwrt.md)（⚠️ 暂无设备测试）
 

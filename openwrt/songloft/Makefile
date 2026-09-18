@@ -5,11 +5,11 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=songloft
-PKG_VERSION:=2.11.3
-PKG_RELEASE:=2
+PKG_VERSION:=2.12.1
+PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_VERSION:=cf3e19842080ab62444ffa2a594ca5b4ccc65248
+PKG_SOURCE_VERSION:=v$(PKG_VERSION)
 PKG_SOURCE_URL:=https://github.com/songloft-org/songloft.git
 PKG_MIRROR_HASH:=skip
 
@@ -92,25 +92,25 @@ $(eval $(call Download,songloft-web))
 define Build/Prepare
 	$(call Build/Prepare/Default)
 ifeq ($(BUILD_VARIANT),full)
-	mkdir -p $(PKG_BUILD_DIR)/songloft-player-build/web-embedded
-	tar -xzf $(DL_DIR)/$(SONGLOFT_WEB_SOURCE) -C $(PKG_BUILD_DIR)/songloft-player-build/web-embedded
+	mkdir -p $(PKG_BUILD_DIR)/clients/player-build/web-embedded
+	tar -xzf $(DL_DIR)/$(SONGLOFT_WEB_SOURCE) -C $(PKG_BUILD_DIR)/clients/player-build/web-embedded
 	# 清理未使用的 canvaskit 渲染器变体（仅保留 canvaskit 本体）
-	rm -f  $(PKG_BUILD_DIR)/songloft-player-build/web-embedded/canvaskit/skwasm* \
-	       $(PKG_BUILD_DIR)/songloft-player-build/web-embedded/canvaskit/wimp* \
-	       $(PKG_BUILD_DIR)/songloft-player-build/web-embedded/canvaskit/*.symbols
-	rm -rf $(PKG_BUILD_DIR)/songloft-player-build/web-embedded/canvaskit/chromium
+	rm -f  $(PKG_BUILD_DIR)/clients/player-build/web-embedded/canvaskit/skwasm* \
+	       $(PKG_BUILD_DIR)/clients/player-build/web-embedded/canvaskit/wimp* \
+	       $(PKG_BUILD_DIR)/clients/player-build/web-embedded/canvaskit/*.symbols
+	rm -rf $(PKG_BUILD_DIR)/clients/player-build/web-embedded/canvaskit/chromium
 	# 移除 NotoSansSC OTF（8MB eager loading），CanvasKit 已有 woff2 分片按需加载
-	rm -f  $(PKG_BUILD_DIR)/songloft-player-build/web-embedded/assets/fonts/NotoSansSC-Regular.otf
+	rm -f  $(PKG_BUILD_DIR)/clients/player-build/web-embedded/assets/fonts/NotoSansSC-Regular.otf
 	# 从 FontManifest.json 移除 NotoSansSC 条目，避免 Flutter 尝试加载已删除的文件
 	python3 -c "\
 import json; \
-p='$(PKG_BUILD_DIR)/songloft-player-build/web-embedded/assets/FontManifest.json'; \
+p='$(PKG_BUILD_DIR)/clients/player-build/web-embedded/assets/FontManifest.json'; \
 d=json.load(open(p)); \
 json.dump([e for e in d if e.get('family')!='NotoSansSC'],open(p,'w'))" 2>/dev/null || true
 	# 同步清理 Service Worker RESOURCES map，移除已删除文件的条目（避免 404 缓存请求）
 	python3 -c "\
 import json,os,re; \
-d='$(PKG_BUILD_DIR)/songloft-player-build/web-embedded'; \
+d='$(PKG_BUILD_DIR)/clients/player-build/web-embedded'; \
 p=d+'/flutter_service_worker.js'; \
 c=open(p).read(); \
 m=re.search(r'const RESOURCES = (\{.*?\});',c,re.DOTALL); \
@@ -139,7 +139,7 @@ endef
 define Package/songloft/install
 	$(call Package/songloft-lite/install,$(1))
 	$(INSTALL_DIR) $(1)/usr/share/songloft/web-embedded
-	$(CP) $(PKG_BUILD_DIR)/songloft-player-build/web-embedded/. $(1)/usr/share/songloft/web-embedded/
+	$(CP) $(PKG_BUILD_DIR)/clients/player-build/web-embedded/. $(1)/usr/share/songloft/web-embedded/
 endef
 
 $(eval $(call BuildPackage,songloft-lite))
