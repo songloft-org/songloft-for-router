@@ -1,4 +1,4 @@
-name: Release
+name: Release Merlin packages
 
 on:
   push:
@@ -38,7 +38,6 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: "songloft-for-router ${{ steps.version.outputs.tag }}"
           body: |
             ## 梅林（Merlin）离线安装包
 

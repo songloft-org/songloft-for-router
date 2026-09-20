@@ -11,9 +11,13 @@
 
 ## 安装文档
 
-- [梅林（Merlin）安装与使用文档](docs/cn/merlin.md) （⚠️ 只在SWRT下面测试通过）
-- [Entware 安装与使用文档](docs/cn/entware.md)
-- [OpenWrt 安装与使用文档](docs/cn/openwrt.md)（⚠️ 暂无设备测试）
+发布包可从以下 GitHub Releases 下载：
+
+| 固件生态 | 发布包 | 安装与使用文档 |
+| --- | --- | --- |
+| OpenWrt | [下载 OpenWrt 发布包](https://github.com/songloft-org/songloft-for-router/releases?q=openwrt) | [OpenWrt 安装与使用文档](docs/cn/openwrt.md)（⚠️ 暂无设备测试） |
+| Entware | [下载 Entware 发布包](https://github.com/songloft-org/songloft-for-router/releases?q=entware) | [Entware 安装与使用文档](docs/cn/entware.md) |
+| 梅林（Merlin） | [下载 Merlin 发布包](https://github.com/songloft-org/songloft-for-router/releases?q=merlin) | [梅林（Merlin）安装与使用文档](docs/cn/merlin.md)（⚠️ 只在 SWRT 下测试通过） |
 
 ## 部署建议
 

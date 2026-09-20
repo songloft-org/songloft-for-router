@@ -1,0 +1,86 @@
+name: Release Entware packages
+
+on:
+  push:
+    tags:
+      - 'entware-*'
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    name: Create GitHub release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create release when it does not exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$TAG" --repo "$REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$REPOSITORY" --title "$TAG" --generate-notes
+          fi
+
+  entware-packages:
+    name: Entware ${{ matrix.arch }}
+    needs: create-release
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - aarch64-3.10
+          - armv7-3.2
+          # Songloft 的 modernc.org/libc SQLite 依赖未提供 MIPS / MIPSel 构建文件。
+          - x64-3.2
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Create artifact directory
+        run: mkdir -p artifacts
+
+      - name: Build Entware packages
+        uses: ownik/gh-action-entware-sdk@v1
+        env:
+          ARCH: ${{ matrix.arch }}
+          ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+          FEED_DIR: ${{ github.workspace }}/entware
+          # songloft-lite 是 songloft 源包的默认构建变体；SDK Action 只能调用源包目标 package/songloft/*。
+          PACKAGES: songloft
+          V: sc
+
+      - name: Upload packages to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          # SDK 输出目录还会包含自动构建的依赖包（如 ca-bundle）；发布时仅保留 Songloft 的两个变体。
+          packages=(
+            artifacts/bin/targets/${ARCH}/*/packages/songloft_*.ipk
+            artifacts/bin/targets/${ARCH}/*/packages/songloft-lite_*.ipk
+            artifacts/bin/targets/${ARCH}/*/packages/songloft_*.apk
+            artifacts/bin/targets/${ARCH}/*/packages/songloft-lite_*.apk
+          )
+
+          if ((${#packages[@]} == 0)); then
+            echo "No Entware packages found for ${ARCH}" >&2
+            exit 1
+          fi
+
+          for package in "${packages[@]}"; do
+            filename=$(basename "$package")
+            extension="${filename##*.}"
+            stem="${filename%.*}"
+            release_name="${stem}_${ARCH}.${extension}"
+            cp "$package" "/tmp/${release_name}"
+            gh release upload "$TAG" "/tmp/${release_name}" --clobber
+          done

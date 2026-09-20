@@ -67,7 +67,9 @@ endef
 GO_PKG:=songloft
 GO_TARGET:=.
 
-GO_ARCH:=$(subst aarch64,arm64,$(subst x86_64,amd64,$(ARCH)))
+# Entware SDK 使用 x64 / armv7 等架构标识，需转换为 Go 的 GOARCH 值。
+# Linux/ARM 的 Go 默认 GOARM=7，无需额外设置。
+GO_ARCH:=$(subst x64,amd64,$(subst x86_64,amd64,$(subst aarch64,arm64,$(subst armv7,arm,$(ARCH)))))
 GO_VARS:=CGO_ENABLED=1 GOOS=linux GOARCH=$(GO_ARCH) CC=$(TARGET_CC)
 
 PKG_SOURCE_VERSION_SHORT:=$(shell echo $(PKG_SOURCE_VERSION) | cut -c1-7)
