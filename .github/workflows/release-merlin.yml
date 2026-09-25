@@ -31,7 +31,12 @@ jobs:
           cd merlin
 
           tar -czf "songloft-SWRT-${VERSION}.tar.gz" songloft-SWRT
-          tar -czf "songloft-koolshare-${VERSION}.tar.gz" songloft-koolshare
+
+          # Koolshare 以压缩包名第一个 "-" / "_" 前的部分作为模块名，
+          # 并校验 /tmp/<模块名>/webs/Module_<模块名>.asp。
+          # 因此包名可携带版本号，但一级目录必须为 songloft。
+          # 归档时重写路径，无需复制源目录。
+          tar --transform='s,^songloft-koolshare,songloft,' -czf "songloft-koolshare-${VERSION}.tar.gz" songloft-koolshare
 
           mv songloft-SWRT-${VERSION}.tar.gz songloft-koolshare-${VERSION}.tar.gz ..
 
