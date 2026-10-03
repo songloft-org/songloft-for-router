@@ -38,7 +38,7 @@ jobs:
           - arm_cortex-a7
           - arm_cortex-a9
           # Songloft 的 modernc.org/libc SQLite 依赖未提供 MIPS / MIPSel 构建文件。
-        # songloft v2.12.1 的 go.mod 使用 Go 1.26 的 tool 指令；
+        # songloft 的 go.mod 使用 Go 1.26 的 tool 指令；
         # OpenWrt 24.10 的 Go 1.23 无法解析，故仅构建内置 Go 1.26 的 25.12。
         sdk:
           - '25.12.5'

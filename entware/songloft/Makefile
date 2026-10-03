@@ -5,7 +5,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=songloft
-PKG_VERSION:=2.12.1
+PKG_VERSION:=2.13.0
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
@@ -23,7 +23,7 @@ PKG_BUILD_PARALLEL:=1
 SONGLOFT_WEB_SOURCE:=songloft-web-embedded-v$(PKG_VERSION).tar.gz
 SONGLOFT_WEB_URL:=https://github.com/songloft-org/songloft-player/releases/download/v$(PKG_VERSION)
 SONGLOFT_WEB_URL_FILE:=songloft-web-embedded.tar.gz
-SONGLOFT_WEB_HASH:=skip
+SONGLOFT_WEB_HASH:=8a6d8ac9df5812980dee6a675c9c7ee65731961e2160f158de857fbe1592dfbd
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(BUILD_VARIANT)/$(PKG_NAME)-$(PKG_VERSION)
 
@@ -75,9 +75,7 @@ GO_VARS:=CGO_ENABLED=1 GOOS=linux GOARCH=$(GO_ARCH) CC=$(TARGET_CC)
 PKG_SOURCE_VERSION_SHORT:=$(shell echo $(PKG_SOURCE_VERSION) | cut -c1-7)
 PKG_BUILD_TIME:=$(shell TZ=Asia/Shanghai date '+%Y-%m-%d_%H:%M:%S')
 
-# 注意：Version 注入裸版本号（不带 v 前缀），与官方 Makefile（VERSION ?= 2.11.3）保持一致。
-# 客户端设置页展示时会自行拼接 'v' 前缀（settings_category_content.dart:
-# 'v${versionInfo.version}'），这里如果再手动加 v 会导致客户端显示成 vv2.11.3。
+# Version 注入裸版本号（不带 v 前缀），客户端设置页会自行拼接 v。
 ifeq ($(BUILD_VARIANT),lite)
   GO_TAGS:=lite
   GO_LDFLAGS:=-X 'songloft/internal/version.Version=$(PKG_VERSION)' \

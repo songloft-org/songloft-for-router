@@ -5,13 +5,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=songloft
-PKG_VERSION:=2.12.1
+PKG_VERSION:=2.13.0
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_VERSION:=v$(PKG_VERSION)
 PKG_SOURCE_URL:=https://github.com/songloft-org/songloft.git
-PKG_MIRROR_HASH:=650749517db77c9abdc3bdd7b70b5eb2fe857ccd3242e9742ea31098bf912b18
+PKG_MIRROR_HASH:=skip
 
 PKG_SOURCE_SUBMODULES:=pkg/tag
 
@@ -27,7 +27,7 @@ PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(BUILD_VARIANT)/$(PKG_NAME)-$(PKG_VERSI
 SONGLOFT_WEB_SOURCE:=songloft-web-embedded-v$(PKG_VERSION).tar.gz
 SONGLOFT_WEB_URL:=https://github.com/songloft-org/songloft-player/releases/download/v$(PKG_VERSION)
 SONGLOFT_WEB_URL_FILE:=songloft-web-embedded.tar.gz
-SONGLOFT_WEB_HASH:=63add69f632bd1a331816731c3d78b8f25352b66474d2a72120f7ceac7b16144
+SONGLOFT_WEB_HASH:=8a6d8ac9df5812980dee6a675c9c7ee65731961e2160f158de857fbe1592dfbd
 
 PKG_SOURCE_VERSION_SHORT:=$(shell echo $(PKG_SOURCE_VERSION) | cut -c1-7)
 PKG_BUILD_TIME:=$(shell TZ=Asia/Shanghai date '+%Y-%m-%d_%H:%M:%S')
