@@ -11,7 +11,8 @@ PKG_RELEASE:=1
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_VERSION:=v$(PKG_VERSION)
 PKG_SOURCE_URL:=https://github.com/songloft-org/songloft.git
-PKG_MIRROR_HASH:=skip
+# 这里不允许使用 skip：Git 源码归档必须填写实际 SHA256，否则 SDK 的 HASH 检查会失败。
+PKG_MIRROR_HASH:=5de3db1506e1f704fab1bc444c7c8ae880c576843b7eff35a94ba34ee9c94ab4
 
 PKG_SOURCE_SUBMODULES:=pkg/tag
 
