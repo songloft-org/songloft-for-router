@@ -1,5 +1,16 @@
 #!/bin/sh
 
+# Allow installing the LuCI page without the SongLoft binary package.
+# Never replace a configuration already provided by SongLoft or the user.
+if [ ! -e /etc/config/songloft ]; then
+	uci -q batch <<-EOF >/dev/null || exit 1
+		add songloft songloft
+		set songloft.@songloft[-1].enabled='0'
+		set songloft.@songloft[-1].listen_port='58091'
+		commit songloft
+	EOF
+fi
+
 uci -q batch <<-EOF >/dev/null
 	delete ucitrack.@songloft[-1]
 	add ucitrack songloft
@@ -7,6 +18,6 @@ uci -q batch <<-EOF >/dev/null
 	commit ucitrack
 EOF
 
-rm -f /tmp/luci-indexcache
+rm -f /tmp/luci-indexcache /tmp/luci-indexcache.*
 
 exit 0

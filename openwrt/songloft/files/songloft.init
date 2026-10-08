@@ -22,7 +22,7 @@ start_instance() {
 	# OpenWrt releases. config_get works on both opkg and apk based systems.
 	config_get_bool enabled "$cfg" enabled 0
 	config_get listen_port "$cfg" listen_port 58091
-	config_get db_path "$cfg" db_path /etc/songloft/data
+	config_get db_path "$cfg" db_path
 	config_get base_path "$cfg" base_path
 	config_get admin_username "$cfg" admin_username
 	config_get admin_password "$cfg" admin_password
@@ -30,6 +30,12 @@ start_instance() {
 	config_get web_path "$cfg" web_path
 
 	[ "$enabled" = "1" ] || return 0
+
+	case "$db_path" in
+		/|"") ${LOGGER} "请先指定非根目录的绝对路径作为数据目录（db_path）"; return 1 ;;
+		/*) ;;
+		*) ${LOGGER} "请先指定非根目录的绝对路径作为数据目录（db_path）"; return 1 ;;
+	esac
 
 	bin="${bin_path:-$PROG_DEFAULT}"
 	web="${web_path:-$WEB_DEFAULT}"

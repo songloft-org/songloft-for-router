@@ -19,8 +19,11 @@ msgstr "监听端口"
 msgid "Data Directory"
 msgstr "数据目录"
 
-msgid "Working directory for SongLoft, used to store the database and music index"
-msgstr "SongLoft 的工作目录，用于存放数据库及音乐索引"
+msgid "Choose a writable persistent directory before enabling SongLoft. SongLoft stores its data here and reads music from the music subdirectory. To use an existing music folder, bind mount it to this subdirectory before starting the service."
+msgstr "启用 SongLoft 前请选择可写的持久化数据目录。SongLoft 在此存储数据，并从其 music 子目录读取音乐。使用已有音乐文件夹时，请在启动服务前将其绑定挂载到该子目录。"
+
+msgid "Enter an absolute path for the data directory"
+msgstr "请填写数据目录的绝对路径"
 
 msgid "URL Base Path"
 msgstr "URL 基础路径"

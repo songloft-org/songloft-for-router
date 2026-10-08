@@ -13,7 +13,7 @@
 | `songloft` | 完整版，内置 Web UI（构建时会下载 [songloft-org/songloft-player](https://github.com/songloft-org/songloft-player) 发布的 Web 资源并裁剪打包） |
 | `songloft-lite` | 精简版，不含 Web UI，体积更小 |
 
-源码从 [songloft-org/songloft](https://github.com/songloft-org/songloft) 指定 commit 拉取构建，构建过程无需手动下载二进制文件；`luci-app-songloft` 依赖 `songloft` 包（`LUCI_DEPENDS:=+songloft`），因此若只安装 `songloft-lite` 也可以正常配合使用，但请注意二者当前均需要自行编译（尚未提供官方 / 第三方 opkg 源）。
+源码从 [songloft-org/songloft](https://github.com/songloft-org/songloft) 指定版本拉取构建，构建过程无需手动下载二进制文件。`luci-app-songloft` 可单独安装，程序可由用户自行部署；若使用本项目的 `songloft` 或 `songloft-lite` 软件包，启动脚本会读取 LuCI 保存的配置。
 
 ## 编译方式
 
@@ -44,14 +44,25 @@ UCI 配置项：
 | --- | --- | --- |
 | `enabled` | `0` | 是否启用服务 |
 | `listen_port` | `58091` | 监听端口，对应环境变量 `LISTEN_PORT` |
-| `db_path` | `/etc/songloft/data` | 数据/工作目录 |
+| `db_path` | 空（必须自行设置） | 可写的持久化数据/工作目录；音乐文件从该目录下的 `music/` 子目录读取 |
 | `base_path` | 空 | URL 基础路径，对应环境变量 `BASE_PATH`，用于反向代理场景 |
 | `admin_username` | 空 | 管理员用户名，对应环境变量 `ADMIN_USERNAME` |
 | `admin_password` | 空 | 管理员密码，对应环境变量 `ADMIN_PASSWORD` |
 | `bin_path` | 空 | 自定义二进制路径，留空则使用默认路径 `/usr/bin/songloft` |
 | `web_path` | 空 | 自定义 Web UI 静态资源路径，留空则使用默认路径 `/usr/share/songloft/web-embedded`（仅完整版有效） |
 
-修改配置后可通过 LuCI 页面保存，或使用 `uci` 命令行工具编辑，然后执行：
+**首次启用前必须指定数据目录**：新安装默认不设置 `db_path`，也不会自动向 `/etc/songloft/data` 写数据。请选择空间足够、可写的持久化存储（例如已挂载的外置存储），在 LuCI「数据目录」填写其绝对路径（例如 `/mnt/storage/songloft`），再启用服务并保存配置。
+
+启动脚本会创建指定目录及其 `music/` 子目录；本例的音乐目录是 `/mnt/storage/songloft/music/`。将音乐文件放入该子目录即可。如果音乐已在其他目录（如 `/mnt/storage/my-music`），可在启动前将其绑定挂载到 `music/`；挂载需在每次启动 SongLoft 前完成，重启设备后也要重新挂载，不要只执行一次：
+
+```sh
+mkdir -p /mnt/storage/songloft/music
+mount --bind /mnt/storage/my-music /mnt/storage/songloft/music
+```
+
+`db_path` 是工作目录，**不要直接设为已有音乐文件夹**，否则数据库等工作数据也会写入该文件夹。确保所选存储在服务启动前已挂载且可写；`web_path` 指网页静态资源目录，不是音乐目录。手工部署二进制时，只有使用本项目的启动脚本才会读取这些 UCI 设置。
+
+在 LuCI 页面保存配置后会自动重新加载服务；如需手动重新加载或重启服务，可执行：
 
 ```bash
 /etc/init.d/songloft reload
@@ -61,7 +72,7 @@ UCI 配置项：
 
 ## LuCI 管理界面
 
-安装 `luci-app-songloft` 后，可在 LuCI 后台的 **服务（Services） -> SongLoft** 菜单中进行图形化配置与状态查看（页面仅在 `/etc/config/songloft` 存在时显示菜单项）。
+安装 `luci-app-songloft` 后，可在 LuCI 后台的 **服务（Services） -> SongLoft** 菜单中进行图形化配置与状态查看。LuCI 单独安装时会创建 `/etc/config/songloft`；页面只在配置文件存在时显示菜单项。
 
 ## 服务管理（命令行）
 

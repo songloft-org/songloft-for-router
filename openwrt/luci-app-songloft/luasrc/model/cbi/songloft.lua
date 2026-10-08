@@ -23,9 +23,14 @@ port.default = "58091"
 port.rmempty = false
 
 db_path = s:option(Value, "db_path", translate("Data Directory"),
-	translate("Working directory for SongLoft, used to store the database and music index"))
-db_path.default = "/etc/songloft/data"
+	translate("Choose a writable persistent directory before enabling SongLoft. SongLoft stores its data here and reads music from the music subdirectory. To use an existing music folder, bind mount it to this subdirectory before starting the service."))
 db_path.rmempty = false
+function db_path.validate(self, value)
+	if value and value:match("^/[^/]") then
+		return value
+	end
+	return nil, translate("Enter an absolute path for the data directory")
+end
 
 base_path = s:option(Value, "base_path", translate("URL Base Path"),
 	translate("Used when SongLoft is served behind a reverse proxy under a sub-path, e.g. /songloft"))
