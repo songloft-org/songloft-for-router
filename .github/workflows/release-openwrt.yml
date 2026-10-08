@@ -73,13 +73,16 @@ jobs:
             "${package_dir}"/songloft-[0-9]*.ipk
             "${package_dir}"/songloft-lite-[0-9]*.ipk
             "${package_dir}"/luci-app-songloft-[0-9]*.ipk
+            "${package_dir}"/luci-i18n-songloft-zh-cn-[0-9]*.ipk
             "${package_dir}"/songloft-[0-9]*.apk
             "${package_dir}"/songloft-lite-[0-9]*.apk
             "${package_dir}"/luci-app-songloft-[0-9]*.apk
+            "${package_dir}"/luci-i18n-songloft-zh-cn-[0-9]*.apk
           )
 
-          if ((${#packages[@]} == 0)); then
-            echo "No packages found in ${package_dir}" >&2
+          translations=("${package_dir}"/luci-i18n-songloft-zh-cn-[0-9]*.ipk "${package_dir}"/luci-i18n-songloft-zh-cn-[0-9]*.apk)
+          if ((${#translations[@]} == 0)); then
+            echo "No SongLoft Chinese translation package found in ${package_dir}" >&2
             exit 1
           fi
 
