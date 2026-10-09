@@ -5,14 +5,14 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=songloft
-PKG_VERSION:=2.13.0
+PKG_VERSION:=2.13.1
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_VERSION:=v$(PKG_VERSION)
 PKG_SOURCE_URL:=https://github.com/songloft-org/songloft.git
-# 这里不允许使用 skip：Git 源码归档必须填写实际 SHA256，否则 SDK 的 HASH 检查会失败。
-PKG_MIRROR_HASH:=5de3db1506e1f704fab1bc444c7c8ae880c576843b7eff35a94ba34ee9c94ab4
+# Git 源码镜像归档必须填写实际 SHA256，不能使用 skip。
+PKG_MIRROR_HASH:=26aed04fa82d46c109612c80f9a87c99cf3d7da38104abdefd6fc9ab644365ae
 
 PKG_SOURCE_SUBMODULES:=pkg/tag
 
@@ -24,7 +24,7 @@ PKG_BUILD_PARALLEL:=1
 SONGLOFT_WEB_SOURCE:=songloft-web-embedded-v$(PKG_VERSION).tar.gz
 SONGLOFT_WEB_URL:=https://github.com/songloft-org/songloft-player/releases/download/v$(PKG_VERSION)
 SONGLOFT_WEB_URL_FILE:=songloft-web-embedded.tar.gz
-SONGLOFT_WEB_HASH:=8a6d8ac9df5812980dee6a675c9c7ee65731961e2160f158de857fbe1592dfbd
+SONGLOFT_WEB_HASH:=f761fede90033d329035ea44f81a3c2c2924dc1d22b15ecc2559d89f6f7e7bf4
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(BUILD_VARIANT)/$(PKG_NAME)-$(PKG_VERSION)
 
