@@ -6,16 +6,21 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-songloft
 PKG_VERSION:=1.0
-PKG_RELEASE:=3
+PKG_RELEASE:=7
 
 PKG_LICENSE:=Apache-2.0
 PKG_MAINTAINER:=songloft-for-router contributors
 
 LUCI_TITLE:=LuCI support for SongLoft music server
 LUCI_DESCRIPTION:=Provides a web management page for SongLoft, a lightweight self-hosted music server.
-# SongLoft 完整版和精简版共享配置与启动脚本；不强制安装任一变体。
+# LuCI 包自带配置与启动脚本；SongLoft 二进制可由用户自行部署。
 LUCI_PKGARCH:=all
 
 include $(TOPDIR)/feeds/luci/luci.mk
+
+# Preserve settings made through LuCI when the package is upgraded.
+define Package/luci-app-songloft/conffiles
+/etc/config/songloft
+endef
 
 # call BuildPackage - OpenWrt buildroot signature

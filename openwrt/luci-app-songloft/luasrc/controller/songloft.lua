@@ -11,7 +11,9 @@ end
 
 function act_status()
 	local e = {}
-	e.running = luci.sys.call("pgrep -f '/usr/bin/songloft' >/dev/null") == 0
+	-- Let rc.common/procd report the actual service instance. The executable path
+	-- is configurable, so matching a hard-coded default binary path is unreliable.
+	e.running = luci.sys.call("/etc/init.d/songloft running >/dev/null 2>&1") == 0
 	luci.http.prepare_content("application/json")
 	luci.http.write_json(e)
 end

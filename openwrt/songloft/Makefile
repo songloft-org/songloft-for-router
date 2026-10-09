@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=songloft
 PKG_VERSION:=2.13.1
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_VERSION:=v$(PKG_VERSION)
@@ -126,20 +126,8 @@ open(p,'w').write(c[:m.start(1)]+json.dumps(cl)+c[m.end(1):]) if m and len(cl)!=
 endif
 endef
 
-define Package/songloft-lite/conffiles
-/etc/config/songloft
-endef
-
-define Package/songloft/conffiles
-/etc/config/songloft
-endef
-
 define Package/songloft-lite/install
 	$(call GoPackage/Package/Install/Bin,$(1))
-	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_BIN) ./files/songloft.init $(1)/etc/init.d/songloft
-	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_CONF) ./files/songloft.config $(1)/etc/config/songloft
 endef
 
 define Package/songloft/install

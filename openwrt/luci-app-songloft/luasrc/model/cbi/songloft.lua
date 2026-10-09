@@ -50,11 +50,6 @@ bin_path = s:option(Value, "bin_path", translate("Binary Path"),
 bin_path.optional = true
 bin_path.placeholder = "/usr/bin/songloft"
 
-web_path = s:option(Value, "web_path", translate("Web UI Directory"),
-	translate("Leave empty to use the default embedded web UI directory"))
-web_path.optional = true
-web_path.placeholder = "/usr/share/songloft/web-embedded"
-
 function m.on_after_commit(map)
 	luci.sys.call("/etc/init.d/songloft reload >/dev/null 2>&1")
 end
