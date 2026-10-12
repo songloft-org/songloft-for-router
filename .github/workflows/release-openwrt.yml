@@ -39,7 +39,7 @@ jobs:
           - arm_cortex-a9
           # Songloft 的 modernc.org/libc SQLite 依赖未提供 MIPS / MIPSel 构建文件。
         # songloft 的 go.mod 使用 Go 1.26 的 tool 指令；
-        # OpenWrt 24.10 的 Go 1.23 无法解析，故仅构建内置 Go 1.26 的 25.12。
+        # OpenWrt 24.10 的 Go 1.23 无法解析，故服务端仅构建内置 Go 1.26 的 25.12。
         sdk:
           - '25.12.5'
 
@@ -91,6 +91,53 @@ jobs:
             extension="${filename##*.}"
             stem="${filename%.*}"
             release_name="${stem}_${ARCH}.${extension}"
+            cp "$package" "/tmp/${release_name}"
+            gh release upload "$TAG" "/tmp/${release_name}" --clobber
+          done
+
+  openwrt-24-luci:
+    name: OpenWrt 24.10 LuCI (all)
+    needs: create-release
+    runs-on: ubuntu-latest
+    env:
+      SDK: '24.10.8'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Build OpenWrt 24.10 LuCI packages
+        uses: openwrt/gh-action-sdk@v11
+        env:
+          # LuCI 和翻译包的 PKGARCH 为 all；只需使用一个 SDK 构建，不编译 SongLoft 服务端。
+          ARCH: x86_64-${{ env.SDK }}
+          FEED_DIR: ${{ github.workspace }}/openwrt
+          NO_SHFMT_CHECK: true
+          PACKAGES: luci-app-songloft
+          V: sc
+
+      - name: Upload LuCI IPKs to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          package_dir="bin/packages/x86_64/action"
+          shopt -s nullglob
+          # 24.10 的 IPK 文件名使用下划线分隔包名、版本和架构。
+          apps=("${package_dir}"/luci-app-songloft_*_all.ipk)
+          translations=("${package_dir}"/luci-i18n-songloft-zh-cn_*_all.ipk)
+          if ((${#apps[@]} == 0 || ${#translations[@]} == 0)); then
+            echo "Missing SongLoft LuCI or Chinese translation IPK in ${package_dir}" >&2
+            exit 1
+          fi
+
+          for package in "${apps[@]}" "${translations[@]}"; do
+            filename=$(basename "$package")
+            # 保留 all 架构标记，并注明 SDK 版本，避免与其他版本的发布资产重名。
+            release_name="${filename%.ipk}_openwrt-${SDK}.ipk"
             cp "$package" "/tmp/${release_name}"
             gh release upload "$TAG" "/tmp/${release_name}" --clobber
           done
