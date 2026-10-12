@@ -7,15 +7,20 @@ m = Map("songloft", translate("SongLoft"),
 	.. [[</a>]]
 )
 
-m:section(SimpleSection).template = "songloft/songloft_status"
-
 s = m:section(TypedSection, "songloft", translate("Basic Settings"))
 s.anonymous = true
 s.addremove = false
 
-enabled = s:option(Flag, "enabled", translate("Enable"))
+enabled = s:option(Flag, "enabled", translate("Start on boot"))
 enabled.default = 0
 enabled.rmempty = false
+
+status = s:option(DummyValue, "_status", translate("Service status"))
+status.template = "songloft/songloft_status"
+
+controls = s:option(DummyValue, "_actions", translate("Service control"))
+controls.template = "songloft/songloft_status"
+controls.description = translate("Save & Apply before starting or restarting.")
 
 port = s:option(Value, "listen_port", translate("Listening Port"))
 port.datatype = "port"

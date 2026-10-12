@@ -1,30 +1,118 @@
+<%+cbi/valueheader%>
+<% if self.option == "_status" then %>
+<strong id="<%=pcdata(self:cbid(section))%>"><%:Collecting data...%></strong>
+<% else
+	local json = require "luci.jsonc"
+	local status_id = "cbid." .. self.config .. "." .. section .. "._status"
+	local control_id = self:cbid(section)
+%>
+<div id="<%=pcdata(control_id)%>">
+	<button class="btn cbi-button" type="button" data-action="start" disabled><%:Start%></button>
+	<button class="btn cbi-button" type="button" data-action="stop" disabled><%:Stop%></button>
+	<button class="btn cbi-button" type="button" data-action="restart" disabled><%:Restart%></button>
+	<button class="btn cbi-button" type="button" data-action="open" disabled><%:Open%></button>
+	<div class="cbi-value-description" data-error="true" role="alert" hidden></div>
+</div>
 <script type="text/javascript">//<![CDATA[
-XHR.poll(3, '<%=url([[admin]], [[services]], [[songloft]], [[status]])%>', null,
-	function(x, data) {
-		var tb = document.getElementById('songloft_status');
-		if (data && tb) {
-			if (data.running) {
-				var links = '<em><b><font color="green"><%:SongLoft RUNNING%></font></b></em>' +
-					'<input class="cbi-button cbi-button-action mar-10" type="button" value="<%:Open Web Interface%>" onclick="SongLoftUI();" />';
-				tb.innerHTML = links;
-			} else {
-				tb.innerHTML = '<em><b><font color="red"><%:SongLoft NOT RUNNING%></font></b></em>';
-			}
+(function() {
+	var status = document.getElementById(<%=json.stringify(status_id)%>);
+	var controls = document.getElementById(<%=json.stringify(control_id)%>);
+	var buttons = controls.querySelectorAll('button[data-action]');
+	var error = controls.querySelector('[data-error]');
+	var running = null;
+	var active = false;
+	var busy = false;
+	var settings = {};
+	var readonly = typeof L !== 'undefined' && typeof L.hasViewPermission === 'function' && L.hasViewPermission() === false;
+	var styles = {
+		start: 'cbi-button-positive', stop: 'cbi-button-negative',
+		restart: 'cbi-button-reload', open: 'cbi-button-action'
+	};
+	var messages = {
+		running: <%=json.stringify(translate("SongLoft RUNNING"))%>,
+		stopped: <%=json.stringify(translate("SongLoft NOT RUNNING"))%>,
+		unavailable: <%=json.stringify(translate("Unable to read service status."))%>,
+		failed: <%=json.stringify(translate("Service operation failed. Check the executable, configuration and system log."))%>
+	};
+
+	function updateButtons() {
+		for (var i = 0; i < buttons.length; i++) {
+			var button = buttons[i];
+			var action = button.getAttribute('data-action');
+			var disabled = busy || running === null ||
+				(action === 'open' ? !running : readonly ||
+					(action === 'start' && running) || (action === 'stop' && !active));
+			button.disabled = !!disabled;
+			button.className = 'btn cbi-button' + (disabled ? '' : ' ' + styles[action]);
 		}
 	}
-);
 
-function SongLoftUI() {
-	var port = '<%=luci.sys.exec("uci -q get songloft.@songloft[0].listen_port"):gsub("^%s*(.-)%s*$", "%1")%>' || '58091';
-	var host = window.location.hostname;
-	window.open('http://' + host + ':' + port, '_blank');
-}
-//]]>
-</script>
-<style>.mar-10 { margin-left: 20px; }</style>
-<fieldset class="cbi-section">
-	<legend><%:Status%></legend>
-	<p id="songloft_status">
-		<em><%:Collecting data...%></em>
-	</p>
-</fieldset>
+	function updateStatus(data) {
+		if (!data || data.error) {
+			running = null;
+			active = false;
+			status.textContent = messages.unavailable;
+			status.style.color = '';
+		} else {
+			running = !!data.running;
+			active = !!data.active;
+			settings = data;
+			status.textContent = running ? messages.running : messages.stopped;
+			status.style.color = running ? 'green' : 'red';
+		}
+		updateButtons();
+	}
+
+	function openInterface() {
+		var host = window.location.hostname;
+		if (host.indexOf(':') !== -1 && host.charAt(0) !== '[')
+			host = '[' + host + ']';
+		var target = new URL('http://' + host);
+		target.port = settings.port || '58091';
+		target.pathname = (settings.base_path || '').split('/').map(encodeURIComponent).join('/').replace(/\/+$/, '') + '/';
+		window.open(target.href, '_blank', 'noopener,noreferrer');
+	}
+
+	function runAction(button) {
+		if (busy || button.disabled)
+			return;
+		var action = button.getAttribute('data-action');
+		if (action === 'open') {
+			openInterface();
+			return;
+		}
+		busy = true;
+		error.hidden = true;
+		updateButtons();
+		var xhr = new XMLHttpRequest();
+		xhr.open('POST', '<%=url([[admin]], [[services]], [[songloft]], [[action]])%>', true);
+		xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+		xhr.timeout = 30000;
+		var reply = null;
+		xhr.onload = function() {
+			if (xhr.status === 200) {
+				try { reply = JSON.parse(xhr.responseText); } catch (e) {}
+			}
+		};
+		xhr.onloadend = function() {
+			busy = false;
+			if (!reply || !reply.success) {
+				error.textContent = messages.failed;
+				error.hidden = false;
+			}
+			updateStatus(reply && reply.status);
+		};
+		xhr.send('token=' + encodeURIComponent('<%=token%>') + '&action=' + encodeURIComponent(action));
+	}
+
+	for (var i = 0; i < buttons.length; i++) {
+		buttons[i].addEventListener('click', function() { runAction(this); });
+	}
+	XHR.poll(3, '<%=url([[admin]], [[services]], [[songloft]], [[status]])%>', null, function(x, data) {
+		if (!busy)
+			updateStatus(data);
+	});
+})();
+//]]></script>
+<% end %>
+<%+cbi/valuefooter%>
