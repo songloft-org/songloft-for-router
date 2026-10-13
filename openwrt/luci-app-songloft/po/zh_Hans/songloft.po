@@ -1,5 +1,5 @@
 msgid "SongLoft"
-msgstr "SongLoft 音乐服务"
+msgstr "SongLoft"
 
 msgid "SongLoft is a lightweight self-hosted music server."
 msgstr "SongLoft 是一款轻量级自建音乐服务，支持本地音乐管理、网络歌曲、电台及歌单等功能。"
