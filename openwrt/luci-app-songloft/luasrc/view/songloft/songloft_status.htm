@@ -81,7 +81,7 @@
 				appendStatus('label warning', messages.disabled);
 				appendStatus('songloft-status-meta', messages.notRunning);
 			} else {
-				appendStatus(running ? (enabled ? 'label success' : 'label warning') : 'label',
+				appendStatus(running ? 'label success' : 'label',
 					running ? (enabled ? messages.running : messages.temporary) : messages.stopped);
 				appendStatus('songloft-status-meta', messages.pid.replace('%s',
 					data.pids && data.pids.length ? data.pids.join(', ') : '-'));

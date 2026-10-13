@@ -429,7 +429,7 @@ test('status: rendered JavaScript syntax and initial polling contract', () => {
 for (const [name, data, texts, labelClass, enabled] of [
   ['disabled', { enabled: false, running: false }, ['Not enabled', 'The service is not running'], 'label warning', ['start']],
   ['running', { enabled: true, running: true, pids: [12, 34] }, ['Running', 'PID: 12, 34'], 'label success', ['stop', 'restart', 'open']],
-  ['temporary', { enabled: false, running: true, pids: [56] }, ['Running (not enabled)', 'PID: 56'], 'label warning', ['stop', 'restart', 'open']],
+  ['temporary', { enabled: false, running: true, pids: [56] }, ['Running (not enabled)', 'PID: 56'], 'label success', ['stop', 'restart', 'open']],
   ['stopped', { enabled: true, running: false, pids: [] }, ['Stopped', 'PID: -'], 'label', ['start']]
 ]) {
   test(`status: ${name} text, PID, label style and buttons`, () => {
