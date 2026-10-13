@@ -5,10 +5,15 @@
 
 START=99
 STOP=10
-
 USE_PROCD=1
 
 PROG_DEFAULT=/usr/bin/songloft
+EXTRA_COMMANDS="check start_now stop_now restart_now"
+EXTRA_HELP="	check [section]	Validate saved settings before starting
+	start_now [section]	Start once without changing UCI enabled
+	stop_now [section]	Stop and wait, ignoring an absent service
+	restart_now [section]	Restart once without changing UCI enabled
+"
 
 fail() {
 	START_RESULT=1
@@ -17,29 +22,31 @@ fail() {
 	return 1
 }
 
-boot() {
-	start boot
+valid_section() {
+	local section_type
+
+	[ -z "$1" ] && return 0
+	case "$1" in
+		*[!A-Za-z0-9_]*) fail "Invalid SongLoft section"; return 1 ;;
+	esac
+	config_get section_type "$1" TYPE
+	[ "$section_type" = songloft ] || fail "SongLoft section not found: $1"
 }
 
 start_instance() {
 	local cfg="$1"
 	local bin enabled listen_port db_path base_path admin_username admin_password bin_path
 
-	# Do not use uci_load_validate here: its fourth argument is an eval callback,
-	# and that API is not available with identical semantics on all supported
-	# OpenWrt releases. config_get works on both opkg and apk based systems.
+	[ -z "$2" ] || [ "$cfg" = "$2" ] || return 0
+	# config_get works on both opkg and apk based OpenWrt releases.
 	config_get_bool enabled "$cfg" enabled 0
+	[ "$enabled" = 1 ] || [ "$START_NOW" = 1 ] || return 0
 	config_get listen_port "$cfg" listen_port 58091
 	config_get db_path "$cfg" db_path
 	config_get base_path "$cfg" base_path
 	config_get admin_username "$cfg" admin_username
 	config_get admin_password "$cfg" admin_password
 	config_get bin_path "$cfg" bin_path
-
-	# Only boot filters instances by the autostart setting.
-	if [ "$2" = boot ] && [ "$enabled" != "1" ]; then
-		return 0
-	fi
 
 	case "$db_path" in
 		/|"") fail "请先指定非根目录的绝对路径作为数据目录（db_path）"; return 1 ;;
@@ -48,54 +55,129 @@ start_instance() {
 	esac
 
 	bin="${bin_path:-$PROG_DEFAULT}"
-
-	if [ ! -x "$bin" ]; then
-		fail "未找到可执行文件：$bin"
+	if [ ! -f "$bin" ] || [ ! -s "$bin" ] || [ ! -x "$bin" ]; then
+		fail "未找到有效的可执行文件：$bin"
+		return 1
+	fi
+	case "$listen_port" in
+		''|*[!0-9]*) fail "无效的监听端口：$listen_port"; return 1 ;;
+	esac
+	if [ "$listen_port" -lt 1 ] || [ "$listen_port" -gt 65535 ]; then
+		fail "无效的监听端口：$listen_port"
 		return 1
 	fi
 
-	if ! mkdir -p "$db_path" "$db_path/music"; then
-		fail "无法创建工作目录或音乐目录：$db_path"
+	if ! mkdir -p "$db_path" "$db_path/music" || [ ! -w "$db_path" ] || [ ! -x "$db_path" ]; then
+		fail "无法创建或访问工作目录和音乐目录：$db_path"
 		return 1
 	fi
+	[ "$CHECK_ONLY" != 1 ] || return 0
 
+	EXPECTED_INSTANCES="$EXPECTED_INSTANCES songloft.$cfg"
 	procd_open_instance "songloft.$cfg"
-	# procd has no cwd parameter. Start through a shell so SongLoft resolves its
-	# relative data/ and music/ directories below the configured work directory.
+	# SongLoft resolves data/ and music/ relative to its working directory.
 	procd_set_param command /bin/sh -c 'cd "$1" || exit 1; exec "$2"' songloft "$db_path" "$bin"
-
 	procd_set_param env LISTEN_PORT="$listen_port"
 	[ -n "$base_path" ] && procd_append_param env BASE_PATH="$base_path"
 	[ -n "$admin_username" ] && procd_append_param env ADMIN_USERNAME="$admin_username"
 	[ -n "$admin_password" ] && procd_append_param env ADMIN_PASSWORD="$admin_password"
-
 	procd_set_param respawn
 	procd_set_param stdout 1
 	procd_set_param stderr 1
+	procd_set_param term_timeout 5
 	procd_close_instance
+}
+
+check() {
+	START_RESULT=0
+	config_load songloft
+	valid_section "$1" || return 1
+	CHECK_ONLY=1
+	config_foreach start_instance songloft "$1"
+	CHECK_ONLY=0
+	return "$START_RESULT"
 }
 
 start_service() {
 	START_RESULT=0
+	EXPECTED_INSTANCES=""
 	config_load songloft
+	valid_section "$1" || return 1
 	config_foreach start_instance songloft "$1"
 }
 
-# Preserve validation errors after rc.common closes the procd service.
+# rc.common otherwise hides start_instance() failures after closing procd.
 service_started() {
 	return "${START_RESULT:-0}"
 }
 
-stop_service() {
-	:
+wait_for_running() {
+	local deadline instance ready
+
+	deadline=$(($(date +%s) + 8))
+	while [ "$(date +%s)" -le "$deadline" ]; do
+		ready=1
+		for instance in $EXPECTED_INSTANCES; do
+			service_running "$instance" || ready=0
+		done
+		[ "$ready" = 1 ] && return 0
+		sleep 1
+	done
+	fail "SongLoft did not stay running"
 }
 
-service_triggers() {
-	procd_add_reload_trigger "songloft"
+start_now() {
+	START_NOW=1
+	check "$1" || return 1
+	# A section argument makes rc.common add/update only this instance.
+	start "$1" || return 1
+	wait_for_running
+}
+
+stop_now() {
+	local services selector pids pid pending attempt=0 instance
+
+	config_load songloft
+	valid_section "$1" || return 1
+	services="$(ubus call service list '{"name":"songloft"}' 2>/dev/null)" || return 1
+	printf '%s\n' "$services" | grep -q '"songloft"[[:space:]]*:' || return 0
+	selector='@.songloft.instances.*.pid'
+	if [ -n "$1" ]; then
+		instance="songloft.$1"
+		[ -n "$(printf '%s\n' "$services" | jsonfilter -e "@.songloft.instances[\"$instance\"]")" ] || return 0
+		selector="@.songloft.instances[\"$instance\"].pid"
+	fi
+	# A registered service may have no PID (empty or crashed instances).
+	# jsonfilter returns nonzero on no matches; still delete its respawn state.
+	pids="$(printf '%s\n' "$services" | jsonfilter -e "$selector")"
+	stop "$instance" || return 1
+	while [ "$attempt" -lt 60 ]; do
+		pending=0
+		for pid in $pids; do
+			[ ! -d "/proc/$pid" ] || pending=1
+		done
+		[ "$pending" = 0 ] && return 0
+		sleep 0.1
+		attempt=$((attempt + 1))
+	done
+	fail "Unable to stop SongLoft completely"
+}
+
+restart_now() {
+	START_NOW=1
+	check "$1" || return 1
+	stop_now "$1" || return 1
+	start_now "$1"
 }
 
 reload_service() {
-	# Keep a manually stopped service stopped when applying settings.
-	service_running || return 0
-	start
+	# Apply follows enabled even if the service was manually stopped.
+	START_NOW=0
+	check || return 1
+	stop_now || return 1
+	start || return 1
+	wait_for_running
 }
+
+# ucitrack owns the config.change trigger independently of this service.
+# Do not also register a second trigger here for the same application.

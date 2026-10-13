@@ -1,0 +1,37 @@
+.songloft-status-meta {
+	margin-left: 1em;
+}
+
+.songloft-action-group {
+	display: flex;
+	gap: .5em;
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+.songloft-action-footer {
+	margin-top: .5em;
+}
+
+/* Without a field title, keep the log and its description on separate rows. */
+.cbi-value[id^="cbi-songloft-"][id$="-_logs"] {
+	display: block;
+}
+
+.songloft-log-view {
+	width: 100%;
+	min-width: 0;
+}
+
+.songloft-log-path {
+	overflow-wrap: anywhere;
+}
+
+.songloft-log-content {
+	box-sizing: border-box;
+	display: block;
+	width: 100%;
+	margin-top: .75em;
+	font-family: monospace;
+	resize: vertical;
+}

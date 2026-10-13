@@ -1,36 +1,49 @@
 <%+cbi/valueheader%>
 <% if self.option == "_status" then %>
-<strong id="<%=pcdata(self:cbid(section))%>"><%:Collecting data...%></strong>
+<div id="<%=pcdata(self:cbid(section))%>"><span class="label"><%:Collecting data...%></span></div>
 <% else
 	local json = require "luci.jsonc"
 	local status_id = "cbid." .. self.config .. "." .. section .. "._status"
 	local control_id = self:cbid(section)
 %>
 <div id="<%=pcdata(control_id)%>">
-	<button class="btn cbi-button" type="button" data-action="start" disabled><%:Start%></button>
-	<button class="btn cbi-button" type="button" data-action="stop" disabled><%:Stop%></button>
-	<button class="btn cbi-button" type="button" data-action="restart" disabled><%:Restart%></button>
-	<button class="btn cbi-button" type="button" data-action="open" disabled><%:Open%></button>
-	<div class="cbi-value-description" data-error="true" role="alert" hidden></div>
+	<div class="songloft-action-group">
+		<button class="cbi-button cbi-button-apply" type="button" data-action="start" disabled><%:Start%></button>
+		<button class="cbi-button cbi-button-reset" type="button" data-action="stop" disabled><%:Stop%></button>
+		<button class="cbi-button cbi-button-reload" type="button" data-action="restart" disabled><%:Restart%></button>
+		<button class="cbi-button cbi-button-action" type="button" data-action="open" disabled><%:Open%></button>
+	</div>
+	<div class="songloft-action-footer" data-error="true" role="alert" hidden></div>
 </div>
 <script type="text/javascript">//<![CDATA[
 (function() {
+	if (!document.getElementById('songloft-view-stylesheet')) {
+		var stylesheet = document.createElement('link');
+		stylesheet.id = 'songloft-view-stylesheet';
+		stylesheet.rel = 'stylesheet';
+		stylesheet.href = '<%=resource%>/view/songloft.css';
+		document.head.appendChild(stylesheet);
+	}
 	var status = document.getElementById(<%=json.stringify(status_id)%>);
 	var controls = document.getElementById(<%=json.stringify(control_id)%>);
+	var section = <%=json.stringify(section)%>;
 	var buttons = controls.querySelectorAll('button[data-action]');
 	var error = controls.querySelector('[data-error]');
 	var running = null;
-	var active = false;
 	var busy = false;
 	var settings = {};
 	var readonly = typeof L !== 'undefined' && typeof L.hasViewPermission === 'function' && L.hasViewPermission() === false;
 	var styles = {
-		start: 'cbi-button-positive', stop: 'cbi-button-negative',
+		start: 'cbi-button-apply', stop: 'cbi-button-reset',
 		restart: 'cbi-button-reload', open: 'cbi-button-action'
 	};
 	var messages = {
-		running: <%=json.stringify(translate("SongLoft RUNNING"))%>,
-		stopped: <%=json.stringify(translate("SongLoft NOT RUNNING"))%>,
+		running: <%=json.stringify(translate("Running"))%>,
+		stopped: <%=json.stringify(translate("Stopped"))%>,
+		disabled: <%=json.stringify(translate("Not enabled"))%>,
+		temporary: <%=json.stringify(translate("Running (not enabled)"))%>,
+		notRunning: <%=json.stringify(translate("The service is not running"))%>,
+		pid: <%=json.stringify(translate("PID: %s"))%>,
 		unavailable: <%=json.stringify(translate("Unable to read service status."))%>,
 		failed: <%=json.stringify(translate("Service operation failed. Check the executable, configuration and system log."))%>
 	};
@@ -41,24 +54,38 @@
 			var action = button.getAttribute('data-action');
 			var disabled = busy || running === null ||
 				(action === 'open' ? !running : readonly ||
-					(action === 'start' && running) || (action === 'stop' && !active));
+					(action === 'start' ? running : !running));
 			button.disabled = !!disabled;
-			button.className = 'btn cbi-button' + (disabled ? '' : ' ' + styles[action]);
+			button.className = 'cbi-button ' + styles[action];
 		}
 	}
 
-	function updateStatus(data) {
-		if (!data || data.error) {
+	function appendStatus(className, text) {
+		var node = document.createElement('span');
+		node.className = className;
+		node.textContent = text;
+		status.appendChild(node);
+	}
+
+	function updateStatus(reply) {
+		var data = reply && !reply.error && reply.sections && reply.sections[section];
+		status.textContent = '';
+		if (!data) {
 			running = null;
-			active = false;
-			status.textContent = messages.unavailable;
-			status.style.color = '';
+			appendStatus('label warning', messages.unavailable);
 		} else {
 			running = !!data.running;
-			active = !!data.active;
 			settings = data;
-			status.textContent = running ? messages.running : messages.stopped;
-			status.style.color = running ? 'green' : 'red';
+			var enabled = data.enabled === true;
+			if (!enabled && !running) {
+				appendStatus('label warning', messages.disabled);
+				appendStatus('songloft-status-meta', messages.notRunning);
+			} else {
+				appendStatus(running ? (enabled ? 'label success' : 'label warning') : 'label',
+					running ? (enabled ? messages.running : messages.temporary) : messages.stopped);
+				appendStatus('songloft-status-meta', messages.pid.replace('%s',
+					data.pids && data.pids.length ? data.pids.join(', ') : '-'));
+			}
 		}
 		updateButtons();
 	}
@@ -102,7 +129,8 @@
 			}
 			updateStatus(reply && reply.status);
 		};
-		xhr.send('token=' + encodeURIComponent('<%=token%>') + '&action=' + encodeURIComponent(action));
+		xhr.send('token=' + encodeURIComponent('<%=token%>') + '&action=' + encodeURIComponent(action) +
+			'&section=' + encodeURIComponent(section));
 	}
 
 	for (var i = 0; i < buttons.length; i++) {

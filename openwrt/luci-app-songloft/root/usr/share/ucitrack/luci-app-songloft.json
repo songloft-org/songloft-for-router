@@ -1,0 +1,4 @@
+{
+	"config": "songloft",
+	"exec": "/bin/sh /etc/rc.common /etc/init.d/songloft reload"
+}

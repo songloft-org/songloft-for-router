@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# Boot invokes the init script; each UCI enabled flag decides what to start.
+/etc/init.d/songloft enable || exit 1
+
+# Install the independent reload trigger even if SongLoft has no instances.
+/etc/init.d/ucitrack enable || exit 1
+/etc/init.d/ucitrack reload || exit 1
+
+exit 0

@@ -1,0 +1,80 @@
+<%+cbi/valueheader%>
+<% local json = require "luci.jsonc" %>
+<div id="<%=pcdata(self:cbid(section))%>" class="songloft-log-view">
+	<div class="songloft-action-group">
+		<button type="button" class="cbi-button cbi-button-reload" data-refresh><%:Refresh%></button>
+		<span data-info role="status"><%:Collecting data...%></span>
+	</div>
+	<div class="songloft-action-footer songloft-log-path" data-path></div>
+	<div class="songloft-action-footer" data-notice hidden></div>
+	<textarea class="cbi-input-textarea songloft-log-content" rows="18" data-content readonly wrap="off" spellcheck="false" aria-label="<%:Runtime log%>"></textarea>
+</div>
+<script type="text/javascript">//<![CDATA[
+(function() {
+	if (!document.getElementById('songloft-view-stylesheet')) {
+		var stylesheet = document.createElement('link');
+		stylesheet.id = 'songloft-view-stylesheet';
+		stylesheet.rel = 'stylesheet';
+		stylesheet.href = '<%=resource%>/view/songloft.css';
+		document.head.appendChild(stylesheet);
+	}
+	var view = document.getElementById(<%=json.stringify(self:cbid(section))%>);
+	var refresh = view.querySelector('[data-refresh]');
+	var info = view.querySelector('[data-info]');
+	var path = view.querySelector('[data-path]');
+	var notice = view.querySelector('[data-notice]');
+	var content = view.querySelector('[data-content]');
+	var busy = false;
+	var messages = {
+		loading: <%=json.stringify(translate("Collecting data..."))%>,
+		updated: <%=json.stringify(translate("Last modified: %s"))%>,
+		empty: <%=json.stringify(translate("The latest log file is empty."))%>,
+		truncated: <%=json.stringify(translate("Showing only the last 128 KiB of this file."))%>,
+		failed: <%=json.stringify(translate("Unable to read the latest log file. Please refresh and try again."))%>,
+		data_directory_missing: <%=json.stringify(translate("Configure and save the data directory first."))%>,
+		log_directory_missing: <%=json.stringify(translate("The log directory does not exist yet."))%>,
+		log_directory_unreadable: <%=json.stringify(translate("Unable to read the log directory."))%>,
+		no_logs: <%=json.stringify(translate("No log files found."))%>
+	};
+
+	function loadLog() {
+		if (busy) return;
+		busy = true;
+		refresh.disabled = true;
+		info.textContent = messages.loading;
+		notice.hidden = true;
+		var xhr = new XMLHttpRequest();
+		xhr.open('GET', '<%=url([[admin]], [[services]], [[songloft]], [[log]])%>?section=' +
+			encodeURIComponent(<%=json.stringify(section)%>), true);
+		xhr.timeout = 15000;
+		var reply = null;
+		xhr.onload = function() {
+			if (xhr.status === 200) {
+				try { reply = JSON.parse(xhr.responseText); } catch (e) {}
+			}
+		};
+		xhr.onloadend = function() {
+			busy = false;
+			refresh.disabled = false;
+			content.value = '';
+			path.textContent = reply && reply.directory || '';
+			if (!reply || reply.error) {
+				info.textContent = reply && messages[reply.error] || messages.failed;
+				return;
+			}
+			path.textContent = reply.directory + '/' + reply.file;
+			info.textContent = messages.updated.replace('%s', new Date(reply.modified * 1000).toLocaleString());
+			content.value = reply.content || '';
+			content.scrollTop = content.scrollHeight;
+			if (reply.truncated || !content.value) {
+				notice.textContent = reply.truncated ? messages.truncated : messages.empty;
+				notice.hidden = false;
+			}
+		};
+		xhr.send(null);
+	}
+	refresh.addEventListener('click', loadLog);
+	loadLog();
+})();
+//]]></script>
+<%+cbi/valuefooter%>
