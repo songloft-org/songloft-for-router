@@ -74,6 +74,8 @@ mount --bind /mnt/storage/my-music /mnt/storage/songloft/music
 
 安装 `luci-app-songloft` 后，可在 LuCI 后台的 **服务（Services） -> SongLoft** 菜单中进行图形化配置与状态查看。LuCI 单独安装时会创建 `/etc/config/songloft`；页面只在配置文件存在时显示菜单项。
 
+运行日志由 SongLoft 自身写入 `<db_path>/data/logs/`，可在 LuCI「日志」页查看。启动脚本关闭 procd 对服务 stdout 的 syslog 采集，避免访问日志重复刷入系统日志；stderr 仍写入 syslog。这不会降低文件日志等级。启动脚本自身的配置校验、启停失败仍通过 `logger -t songloft` 写入 syslog，并输出到命令行 stderr；排查时也可运行 `/etc/init.d/songloft check` 查看。更新启动脚本后需重启服务才会生效。
+
 ## 服务管理（命令行）
 
 ```bash
