@@ -3,6 +3,9 @@ m = Map("songloft", translate("SongLoft"),
 	.. [[ <a href="https://github.com/songloft-org/songloft" target="_blank" rel="noopener noreferrer">]]
 	.. translate("Project Homepage")
 	.. [[</a>]]
+	.. [[ · <a href="https://github.com/songloft-org/songloft-for-router" target="_blank" rel="noopener noreferrer">]]
+	.. translate("Plugin Homepage")
+	.. [[</a>]]
 )
 
 -- Use LuCI's normal staged apply flow. ucitrack reloads after commit,

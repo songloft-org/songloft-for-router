@@ -7,6 +7,9 @@ msgstr "SongLoft 是一款轻量级自建音乐服务，支持本地音乐管理
 msgid "Project Homepage"
 msgstr "项目主页"
 
+msgid "Plugin Homepage"
+msgstr "插件主页"
+
 msgid "Basic Settings"
 msgstr "基础设置"
 
