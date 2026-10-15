@@ -1,12 +1,26 @@
 name: Release Entware packages
 
 on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Existing release tag to build
+        required: true
+        type: string
   push:
     tags:
       - 'entware-*'
 
 permissions:
   contents: write
+
+# Serialize releases for this platform, including calls from the update workflow.
+concurrency:
+  group: release-entware
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   create-release:
@@ -17,10 +31,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ env.RELEASE_TAG }}
         run: |
           if ! gh release view "$TAG" --repo "$REPOSITORY" >/dev/null 2>&1; then
-            gh release create "$TAG" --repo "$REPOSITORY" --title "$TAG" --generate-notes
+            gh release create "$TAG" --repo "$REPOSITORY" --title "$TAG" --generate-notes --verify-tag --draft
           fi
 
   entware-packages:
@@ -40,7 +54,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Create artifact directory
         run: mkdir -p artifacts
@@ -58,17 +72,17 @@ jobs:
       - name: Upload packages to release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ env.RELEASE_TAG }}
           ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
           shopt -s nullglob
           # SDK 输出目录还会包含自动构建的依赖包（如 ca-bundle）；发布时仅保留 Songloft 的两个变体。
           packages=(
-            artifacts/bin/targets/${ARCH}/*/packages/songloft_*.ipk
-            artifacts/bin/targets/${ARCH}/*/packages/songloft-lite_*.ipk
-            artifacts/bin/targets/${ARCH}/*/packages/songloft_*.apk
-            artifacts/bin/targets/${ARCH}/*/packages/songloft-lite_*.apk
+            artifacts/bin/targets/"${ARCH}"/*/packages/songloft_*.ipk
+            artifacts/bin/targets/"${ARCH}"/*/packages/songloft-lite_*.ipk
+            artifacts/bin/targets/"${ARCH}"/*/packages/songloft_*.apk
+            artifacts/bin/targets/"${ARCH}"/*/packages/songloft-lite_*.apk
           )
 
           if ((${#packages[@]} == 0)); then
@@ -84,3 +98,19 @@ jobs:
             cp "$package" "/tmp/${release_name}"
             gh release upload "$TAG" "/tmp/${release_name}" --clobber
           done
+
+  publish:
+    name: Publish and retain the latest entware release
+    needs: [entware-packages]
+    runs-on: ubuntu-latest
+    steps:
+      # Maintenance scripts come from the workflow revision, not an older release tag.
+      - uses: actions/checkout@v4
+      - name: Publish complete release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
+      - name: Remove older releases and their tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 script/prune-releases.py entware

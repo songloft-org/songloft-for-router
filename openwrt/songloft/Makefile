@@ -6,15 +6,17 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=songloft
 PKG_VERSION:=2.13.1
-PKG_RELEASE:=3
+PKG_RELEASE:=1
 
-PKG_SOURCE_PROTO:=git
-PKG_SOURCE_VERSION:=v$(PKG_VERSION)
-PKG_SOURCE_URL:=https://github.com/songloft-org/songloft.git
-# Git 源码镜像归档必须填写实际 SHA256，不能使用 skip。
-PKG_MIRROR_HASH:=26aed04fa82d46c109612c80f9a87c99cf3d7da38104abdefd6fc9ab644365ae
+PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
+PKG_SOURCE_URL:=https://codeload.github.com/songloft-org/songloft/tar.gz/v$(PKG_VERSION)?
+PKG_HASH:=7bff2d4bb4e3987e41646cc5c16568f66076b47988f53a3cbf32cf36e241adfd
 
-PKG_SOURCE_SUBMODULES:=pkg/tag
+# GitHub 源码压缩包不包含子模块；单独下载上游锁定的 pkg/tag 提交。
+SONGLOFT_TAG_VERSION:=64e12e525cc5c9a5ee66826c98dbaed42534af8b
+SONGLOFT_TAG_SOURCE:=songloft-tag-$(SONGLOFT_TAG_VERSION).tar.gz
+SONGLOFT_TAG_URL:=https://codeload.github.com/hanxi/tag/tar.gz/$(SONGLOFT_TAG_VERSION)?
+SONGLOFT_TAG_HASH:=340e2ee8473d43385bba6e43cf144f68c336cc73f5491bfcc1c43b9d201b5385
 
 PKG_LICENSE:=Apache-2.0
 PKG_LICENSE_FILES:=LICENSE
@@ -30,7 +32,7 @@ SONGLOFT_WEB_URL:=https://github.com/songloft-org/songloft-player/releases/downl
 SONGLOFT_WEB_URL_FILE:=songloft-web-embedded.tar.gz
 SONGLOFT_WEB_HASH:=f761fede90033d329035ea44f81a3c2c2924dc1d22b15ecc2559d89f6f7e7bf4
 
-PKG_SOURCE_VERSION_SHORT:=$(shell echo $(PKG_SOURCE_VERSION) | cut -c1-7)
+PKG_SOURCE_VERSION_SHORT:=v$(PKG_VERSION)
 PKG_BUILD_TIME:=$(shell TZ=Asia/Shanghai date '+%Y-%m-%d_%H:%M:%S')
 
 GO_PKG:=songloft
@@ -82,6 +84,13 @@ define Package/songloft/description
   and playlist features. This package includes the embedded web UI.
 endef
 
+define Download/songloft-tag
+  FILE:=$(SONGLOFT_TAG_SOURCE)
+  URL:=$(SONGLOFT_TAG_URL)
+  HASH:=$(SONGLOFT_TAG_HASH)
+endef
+$(eval $(call Download,songloft-tag))
+
 define Download/songloft-web
   FILE:=$(SONGLOFT_WEB_SOURCE)
   URL:=$(SONGLOFT_WEB_URL)
@@ -92,6 +101,8 @@ $(eval $(call Download,songloft-web))
 
 define Build/Prepare
 	$(call Build/Prepare/Default)
+	mkdir -p $(PKG_BUILD_DIR)/pkg/tag
+	tar -xzf $(DL_DIR)/$(SONGLOFT_TAG_SOURCE) -C $(PKG_BUILD_DIR)/pkg/tag --strip-components=1
 ifeq ($(BUILD_VARIANT),lite)
 	# golang-package.mk 在传入 GO_PKG_TAGS 前会扫描构建目标；保留嵌入目录以通过该预扫描。
 	# 实际编译使用 -tags lite，不会将此占位文件嵌入二进制。

@@ -8,13 +8,15 @@ PKG_NAME:=songloft
 PKG_VERSION:=2.13.1
 PKG_RELEASE:=1
 
-PKG_SOURCE_PROTO:=git
-PKG_SOURCE_VERSION:=v$(PKG_VERSION)
-PKG_SOURCE_URL:=https://github.com/songloft-org/songloft.git
-# Git 源码镜像归档必须填写实际 SHA256，不能使用 skip。
-PKG_MIRROR_HASH:=26aed04fa82d46c109612c80f9a87c99cf3d7da38104abdefd6fc9ab644365ae
+PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
+PKG_SOURCE_URL:=https://codeload.github.com/songloft-org/songloft/tar.gz/v$(PKG_VERSION)?
+PKG_HASH:=7bff2d4bb4e3987e41646cc5c16568f66076b47988f53a3cbf32cf36e241adfd
 
-PKG_SOURCE_SUBMODULES:=pkg/tag
+# GitHub 源码压缩包不包含子模块；单独下载上游锁定的 pkg/tag 提交。
+SONGLOFT_TAG_VERSION:=64e12e525cc5c9a5ee66826c98dbaed42534af8b
+SONGLOFT_TAG_SOURCE:=songloft-tag-$(SONGLOFT_TAG_VERSION).tar.gz
+SONGLOFT_TAG_URL:=https://codeload.github.com/hanxi/tag/tar.gz/$(SONGLOFT_TAG_VERSION)?
+SONGLOFT_TAG_HASH:=340e2ee8473d43385bba6e43cf144f68c336cc73f5491bfcc1c43b9d201b5385
 
 PKG_LICENSE:=Apache-2.0
 PKG_LICENSE_FILES:=LICENSE
@@ -73,7 +75,7 @@ GO_TARGET:=.
 GO_ARCH:=$(subst x64,amd64,$(subst x86_64,amd64,$(subst aarch64,arm64,$(subst armv7,arm,$(ARCH)))))
 GO_VARS:=CGO_ENABLED=1 GOOS=linux GOARCH=$(GO_ARCH) CC=$(TARGET_CC)
 
-PKG_SOURCE_VERSION_SHORT:=$(shell echo $(PKG_SOURCE_VERSION) | cut -c1-7)
+PKG_SOURCE_VERSION_SHORT:=v$(PKG_VERSION)
 PKG_BUILD_TIME:=$(shell TZ=Asia/Shanghai date '+%Y-%m-%d_%H:%M:%S')
 
 # Version 注入裸版本号（不带 v 前缀），客户端设置页会自行拼接 v。
@@ -91,6 +93,13 @@ else
 	-X 'songloft/internal/version.BuildType=full'
 endif
 
+define Download/songloft-tag
+  FILE:=$(SONGLOFT_TAG_SOURCE)
+  URL:=$(SONGLOFT_TAG_URL)
+  HASH:=$(SONGLOFT_TAG_HASH)
+endef
+$(eval $(call Download,songloft-tag))
+
 define Download/songloft-web
   FILE:=$(SONGLOFT_WEB_SOURCE)
   URL:=$(SONGLOFT_WEB_URL)
@@ -101,6 +110,8 @@ $(eval $(call Download,songloft-web))
 
 define Build/Prepare
 	$(call Build/Prepare/Default)
+	mkdir -p $(PKG_BUILD_DIR)/pkg/tag
+	tar -xzf $(DL_DIR)/$(SONGLOFT_TAG_SOURCE) -C $(PKG_BUILD_DIR)/pkg/tag --strip-components=1
 ifeq ($(BUILD_VARIANT),full)
 	mkdir -p $(PKG_BUILD_DIR)/clients/player-build/web-embedded
 	tar -xzf $(DL_DIR)/$(SONGLOFT_WEB_SOURCE) -C $(PKG_BUILD_DIR)/clients/player-build/web-embedded

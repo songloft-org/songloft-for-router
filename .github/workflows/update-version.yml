@@ -1,0 +1,88 @@
+name: Check upstream and build router packages
+
+on:
+  schedule:
+    # Daily at 00:23 UTC (08:23 Asia/Shanghai).
+    - cron: '23 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-router-version
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.update.outputs.version }}
+      entware: ${{ steps.update.outputs.entware }}
+      openwrt: ${{ steps.update.outputs.openwrt }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+      - name: Update package sources and prepare release tags
+        id: update
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 script/update-version.py
+          version=$(sed -n 's/^PKG_VERSION:=//p' openwrt/songloft/Makefile)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add entware/songloft/Makefile openwrt/songloft/Makefile
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update router packages to $version"
+            git push origin "HEAD:refs/heads/$DEFAULT_BRANCH"
+          fi
+
+          for platform in entware openwrt; do
+            tag="$platform-$version"
+            if git show-ref --verify --quiet "refs/tags/$tag"; then
+              # An existing release tag must continue to describe its original sources.
+              if ! git diff --quiet "$tag" HEAD -- "$platform/songloft/Makefile"; then
+                echo "::error::Sources differ from existing tag $tag; refusing to overwrite it"
+                exit 1
+              fi
+            else
+              git tag "$tag"
+              git push origin "refs/tags/$tag"
+            fi
+
+            # A failed build leaves a draft; retry it on the next check.
+            # Listing failures stop the job instead of looking like a missing release.
+            releases=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+              --jq ".[] | select(.tag_name == \"$tag\") | .draft")
+            if [[ "$releases" == false ]]; then
+              # Also retry cleanup if publishing previously succeeded but pruning failed.
+              python3 script/prune-releases.py "$platform"
+              echo "$platform=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "$platform=true" >> "$GITHUB_OUTPUT"
+            fi
+          done
+
+  entware:
+    needs: check
+    if: needs.check.outputs.entware == 'true'
+    # GITHUB_TOKEN pushes do not trigger tag workflows; call the build directly.
+    uses: ./.github/workflows/release-entware.yml
+    with:
+      tag: entware-${{ needs.check.outputs.version }}
+
+  openwrt:
+    needs: check
+    if: needs.check.outputs.openwrt == 'true'
+    uses: ./.github/workflows/release-openwrt.yml
+    with:
+      tag: openwrt-${{ needs.check.outputs.version }}
