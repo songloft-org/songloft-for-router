@@ -2,8 +2,8 @@ name: Check upstream and build router packages
 
 on:
   schedule:
-    # Daily at 00:23 UTC (08:23 Asia/Shanghai).
-    - cron: '23 0 * * *'
+    # Daily at 20:00 UTC (04:00 the next day in Asia/Shanghai).
+    - cron: '0 20 * * *'
   workflow_dispatch:
 
 permissions:
@@ -18,25 +18,29 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.update.outputs.version }}
-      entware: ${{ steps.update.outputs.entware }}
-      openwrt: ${{ steps.update.outputs.openwrt }}
+      entware: ${{ steps.release.outputs.entware }}
+      openwrt: ${{ steps.release.outputs.openwrt }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
-      - name: Update package sources and prepare release tags
+      - name: Check upstream and update package sources
         id: update
         env:
           GITHUB_TOKEN: ${{ github.token }}
+        run: python3 script/update-version.py
+      - name: Commit updated sources and prepare release tags
+        id: release
+        if: steps.update.outputs.upgrade_ready == 'true'
+        env:
           GH_TOKEN: ${{ github.token }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          UPSTREAM_VERSION: ${{ steps.update.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
-          python3 script/update-version.py
-          version=$(sed -n 's/^PKG_VERSION:=//p' openwrt/songloft/Makefile)
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          version="$UPSTREAM_VERSION"
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -59,7 +63,7 @@ jobs:
               git push origin "refs/tags/$tag"
             fi
 
-            # A failed build leaves a draft; retry it on the next check.
+            # Reached only after successfully upgrading the package version.
             # Listing failures stop the job instead of looking like a missing release.
             releases=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
               --jq ".[] | select(.tag_name == \"$tag\") | .draft")

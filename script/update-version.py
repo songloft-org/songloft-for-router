@@ -70,6 +70,14 @@ def replace_assignment(content, key, value):
     return content
 
 
+def report_version(version, upgrade_ready):
+    output = os.environ.get("GITHUB_OUTPUT")
+    if output:
+        with open(output, "a", encoding="utf-8") as stream:
+            stream.write("version=" + version + "\n")
+            stream.write("upgrade_ready=" + str(upgrade_ready).lower() + "\n")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("version", nargs="?",
@@ -90,9 +98,13 @@ def main():
             if not match:
                 raise ValueError("PKG_VERSION not found in " + str(path))
             packages.append((path, original, match.group(1).strip()))
-        if args.version is None and all(current == version for _, _, current in packages):
-            print("Entware and OpenWrt are already at " + version +
-                  "; skipping downloads and checks.")
+        target = tuple(map(int, version.split(".")))
+        current_versions = [tuple(map(int, current.split("."))) for _, _, current in packages]
+        new_version = (all(target >= current for current in current_versions) and
+                       any(target > current for current in current_versions))
+        if args.version is None and not new_version:
+            print("Upstream " + version + " requires no version upgrade; skipping the remaining workflow.")
+            report_version(version, False)
             return
         tag = "v" + version
         print("Updating Entware and OpenWrt to " + tag, flush=True)
@@ -105,8 +117,11 @@ def main():
         release = api_json(PLAYER + "/releases/tags/" + tag, directory)
         assets = [asset for asset in release["assets"]
                   if asset["name"] == "songloft-web-embedded.tar.gz"]
-        if len(assets) != 1 or release["draft"] or release["prerelease"]:
+        if (release["tag_name"] != tag or release["draft"] or release["prerelease"] or
+                not release["published_at"] or len(assets) != 1):
             raise ValueError("Matching stable Web release asset is unavailable")
+        if assets[0].get("state") != "uploaded" or assets[0].get("size", 0) <= 0:
+            raise ValueError("songloft-web-embedded.tar.gz has not finished uploading")
         source_hash = archive_hash("https://codeload.github.com/" + SERVER +
                                    "/tar.gz/" + tag, directory / "source.tar.gz")
         tag_hash = archive_hash("https://codeload.github.com/hanxi/tag/tar.gz/" +
@@ -148,6 +163,8 @@ def main():
         print("Source SHA256: " + source_hash)
         print("pkg/tag SHA256: " + tag_hash)
         print("Web SHA256: " + web_hash)
+        # Only a successful version upgrade may continue to tagging and builds.
+        report_version(version, new_version)
 
 
 if __name__ == "__main__":

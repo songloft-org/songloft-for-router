@@ -22,13 +22,15 @@
 ./script/update-version.py 2.13.2 --verify-web
 ```
 
-不传版本号时，仅先查询最新稳定版本标签；如果 Entware 和 OpenWrt 当前版本均与其一致，就直接退出，不再查询子模块、Web 资源或下载校验源码。显式传入版本号才会强制检查同版本，单独使用 `--verify-web` 不会绕过跳过逻辑。
+不传版本号时，仅先查询最新稳定版本标签；只有上游版本更高时才获取资源并更新 Makefile。版本相同时跳过全部后续步骤，不下载资源、不检查 Release、不打标签、不编译；也不会自动降级。显式传入版本号仍可强制检查同版本，单独使用 `--verify-web` 不会绕过跳过逻辑。
+
+准备更新时，只检查打包需要的资源：主源码和子模块压缩包必须能完整下载，同版本正式前端 Release 的 `songloft-web-embedded.tar.gz` 必须已上传完成且大小非零。资源缺失、上传未完成或下载失败时，本次检查直接失败，不写入 Makefile，也不触发后续发布；下次检查可以重试。无需等待上游其他平台的产物或整个发布工作流结束。
 
 需要 Python 3.6+、curl 和 GitHub 网络访问；可通过 `GITHUB_TOKEN` 提高 API 限额。源码与子模块均从 codeload 压缩包下载，不使用 Git 拉取。Web 资源优先使用 GitHub 发布资产的 SHA256，未提供时自动下载计算；构建时 SDK 会校验资源。脚本在所有下载和校验成功后才写入两个 Makefile，升级版本时将 `PKG_RELEASE` 重置为 `1`；强制检查同版本会保留打包修订号。对应版本的 Web 发布资源必须已上传。
 
-GitHub Actions 的 `Check upstream and build router packages` 每天北京时间 08:23 自动检查一次，也可在 Actions 页面点击 **Run workflow** 手动检查。发现更新后会自动提交两个 Makefile、创建 `entware-版本号` 和 `openwrt-版本号` 标签，并直接调用对应的编译工作流，无需额外配置 PAT。手动推送这两类标签仍会触发编译。
+GitHub Actions 的 `Check upstream and build router packages` 每天北京时间 04:00 自动检查一次，也可在 Actions 页面点击 **Run workflow** 手动检查。只有确认上游版本更高、所需资源获取成功且两个 Makefile 更新成功，才继续提交配置、创建 `entware-版本号` 和 `openwrt-版本号` 标签并检查对应 Release。正式 Release 已存在时跳过编译；Release 缺失或为草稿时调用对应编译工作流，无需额外配置 PAT。资源获取或更新失败时，后续发布步骤全部跳过。手动推送这两类标签也会触发编译。
 
-新版本先创建草稿 Release，等该平台全部构建及上传成功后才正式发布，并删除该平台较旧版本的 Release（含附件）及对应标签，OpenWrt、Entware 各保留一个最新成功版本。失败构建保留草稿与上一成功版本，下次检查自动重试；Merlin 发布不参与清理。定时工作流需存在于默认分支，仓库规则须允许 `GITHUB_TOKEN` 写入版本提交、标签和 Release。
+新版本先创建草稿 Release，等该平台全部构建及上传成功后才正式发布，并删除该平台较旧版本的 Release（含附件）及对应标签，OpenWrt、Entware 各保留一个最新成功版本。失败构建保留草稿与上一成功版本，可手动重跑失败任务；每日检查不会因同版本 Release 缺失或为草稿而重新编译。Merlin 发布不参与清理。定时工作流需存在于默认分支，仓库规则须允许 `GITHUB_TOKEN` 写入版本提交、标签和 Release。
 
 维护脚本的本地测试：
 
