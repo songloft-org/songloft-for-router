@@ -70,6 +70,8 @@ reset_state() {
 	START_CALLS=0
 	CLOCK=0
 	SLEEP_CALLS=0
+	SLEEP_FAILURE=0
+	PID_EXIT_AT=-1
 	MKDIR_FAILURE=0
 	UBUS_FAILURE=0
 	START_FAILURE=0
@@ -103,11 +105,20 @@ config_foreach() {
 logger() { LOGS+=("$*"); }
 mkdir() { return "$MKDIR_FAILURE"; }
 sleep() {
-	case "$1" in 1|0.1) ;; *) printf 'Unexpected sleep: %s\n' "$1" >&2; exit 1 ;; esac
+	assert_equal 'BusyBox-compatible sleep' 1 "$1"
+	(( SLEEP_FAILURE == 0 )) || return "$SLEEP_FAILURE"
 	SLEEP_CALLS=$((SLEEP_CALLS + 1))
 	CLOCK=$((CLOCK + 1))
 	# Guard against accidental infinite waits without ever sleeping for real.
 	(( SLEEP_CALLS <= 100 )) || { printf 'Mock wait budget exceeded.\n' >&2; exit 1; }
+}
+# Simulate delayed PID disappearance without signaling a real process.
+[() {
+	if [[ $# == 4 && $1 == '!' && $2 == -d && $3 == /proc/$$ ]] &&
+		(( PID_EXIT_AT >= 0 && CLOCK >= PID_EXIT_AT )); then
+		return 0
+	fi
+	command [ "$@"
 }
 date() { assert_equal 'fake date arguments' +%s "$*"; printf '%s\n' "$CLOCK"; }
 procd_open_instance() { CREATED+=("$1"); }
@@ -229,7 +240,17 @@ stop_timeout() {
 	[[ -d /proc/$$ ]] || { printf '/proc is required for timeout fixture.\n' >&2; exit 1; }
 	LIVE_PID=1; INSTANCES[$A]=1
 	invoke 1 restart_now cfg000001
-	assert_equal 'deterministic stop timeout' 60 "$SLEEP_CALLS"
+	assert_equal 'deterministic stop timeout' 30 "$SLEEP_CALLS"
+	assert_equal 'restart blocked' 0 "$START_CALLS"
+}
+stop_delayed() {
+	LIVE_PID=1; INSTANCES[$A]=1; PID_EXIT_AT="$1"
+	invoke 0 stop_now cfg000001
+	assert_equal 'waits until PID disappears' "$1" "$SLEEP_CALLS"
+}
+stop_sleep_failure() {
+	LIVE_PID=1; INSTANCES[$A]=1; SLEEP_FAILURE=1
+	invoke 1 restart_now cfg000001
 	assert_equal 'restart blocked' 0 "$START_CALLS"
 }
 ubus_failure() { UBUS_FAILURE=7; invoke 1 stop_now; assert_equal 'no deletion' 0 "${#DELETED[@]}"; }
@@ -321,6 +342,9 @@ run_case 'start adapter failure propagates' start_failure
 run_case 'stop adapter failure prevents restart' stop_failure
 run_case 'startup wait times out without real sleep' start_timeout
 run_case 'stop wait times out without signals or real sleep' stop_timeout
+run_case 'slow stop succeeds after the old six-second deadline' stop_delayed 12
+run_case 'stop succeeds on the final thirty-second check' stop_delayed 30
+run_case 'failed sleep prevents restart' stop_sleep_failure
 run_case 'ubus failure prevents deletion' ubus_failure
 run_case 'ucitrack/defaults registration and no duplicate callbacks (static)' static_integration
 

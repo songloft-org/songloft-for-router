@@ -97,6 +97,18 @@ msgstr "运行中"
 msgid "Stopped"
 msgstr "已停止"
 
+msgid "Stopping..."
+msgstr "停止中..."
+
+msgid "Starting..."
+msgstr "启动中..."
+
+msgid "Restarting..."
+msgstr "重启中..."
+
+msgid "Unable to confirm the service stopped within 30 seconds. Check the system log."
+msgstr "等待 30 秒仍未确认服务停止，请检查系统日志。"
+
 msgid "Not enabled"
 msgstr "未启用"
 

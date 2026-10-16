@@ -135,8 +135,16 @@ function environment({ readonly = false, hostname = 'router.example' } = {}) {
   }
   const polls = [];
   const opened = [];
+  let now = 0, nextTimer = 0;
+  const timers = new Map();
   const context = vm.createContext({
     document, XMLHttpRequest, Date: FixedDate, JSON, URL, encodeURIComponent,
+    setTimeout(callback, delay) {
+      const id = ++nextTimer;
+      timers.set(id, { callback, at: now + delay });
+      return id;
+    },
+    clearTimeout(id) { timers.delete(id); },
     L: { hasViewPermission: () => !readonly },
     XHR: { poll(interval, url, body, callback) { polls.push({ interval, url, body, callback }); } },
     window: {
@@ -146,6 +154,15 @@ function environment({ readonly = false, hostname = 'router.example' } = {}) {
   });
   return {
     elements, head, requests, polls, opened,
+    advance(milliseconds) {
+      now += milliseconds;
+      for (const [id, timer] of timers) {
+        if (timer.at <= now) {
+          timers.delete(id);
+          timer.callback();
+        }
+      }
+    },
     run(kind, currentSection) { renderScript(kind, currentSection).runInContext(context, { timeout: 1000 }); }
   };
 }
@@ -488,7 +505,8 @@ for (const action of ['start', 'stop', 'restart']) {
     assert.equal(request.method, 'POST');
     assert.equal(request.url, endpoint('action'));
     assert.equal(request.async, true);
-    assert.equal(request.timeout, 30000);
+    assert.equal(request.timeout, action === 'restart' ? 45000 : 30000);
+    assert.equal(widget.status.textContent, { start: 'Starting...', stop: 'Stopping...', restart: 'Restarting...' }[action]);
     assert.equal(request.headers['Content-Type'], 'application/x-www-form-urlencoded');
     assert.equal(request.body, 'token=' + encodeURIComponent(token) + '&action=' + action + '&section=' + encodeURIComponent(section));
     assert.deepEqual([...new URLSearchParams(request.body)], [['token', token], ['action', action], ['section', section]]);
@@ -503,12 +521,74 @@ for (const action of ['start', 'stop', 'restart']) {
     assertButtons(widget, []);
     request.onloadend();
     assert.equal(widget.error.hidden, true);
+    widget.env.advance(30000);
+    assert.equal(widget.error.hidden, true, 'successful operation cancels its timeout');
     assertButtons(widget, action === 'stop' ? ['start'] : ['stop', 'restart', 'open']);
     widget.update({ enabled: true, running: false });
     assertButtons(widget, ['start']);
     assert.match(widget.status.textContent, /Stopped/);
   });
 }
+
+for (const mode of ['service error', 'network error', 'timeout', 'HTTP 500', 'malformed JSON', 'pending request']) {
+  test(`status: stop ${mode} stays pending until 30 seconds and clears on eventual exit`, () => {
+    const widget = statusWidget();
+    widget.update({ enabled: true, running: true, active: true });
+    widget.click('stop');
+    const request = widget.env.requests[0];
+    if (mode === 'service error') request.finish({ success: false });
+    else if (mode === 'network error') request.fail('error');
+    else if (mode === 'timeout') request.fail('timeout');
+    else if (mode === 'HTTP 500') request.finish({}, 500);
+    else if (mode === 'malformed JSON') request.finish('{bad', 200, true);
+    widget.env.advance(29999);
+    widget.poll({ error: 'service_unavailable' });
+    widget.update({ enabled: true, running: true, active: true });
+    assert.equal(widget.status.textContent, 'Stopping...');
+    assert.equal(widget.error.hidden, true);
+    assertButtons(widget, []);
+    widget.env.advance(1);
+    assert.equal(widget.error.hidden, false);
+    assert.match(widget.error.textContent, /30 seconds/);
+    widget.update({ enabled: true, running: false, active: false });
+    assert.equal(widget.error.hidden, true);
+    assert.match(widget.status.textContent, /Stopped/);
+    assertButtons(widget, ['start']);
+  });
+}
+
+test('status: slow stop recovers through polling and ignores a late action response', () => {
+  const widget = statusWidget();
+  widget.update({ enabled: true, running: true, active: true });
+  widget.click('stop');
+  const stopRequest = widget.env.requests[0];
+  widget.env.advance(12000);
+  widget.update({ enabled: true, running: false, active: true });
+  assert.equal(widget.status.textContent, 'Stopping...', 'registered instance is not fully stopped');
+  widget.update({ enabled: true, running: false });
+  assert.equal(widget.status.textContent, 'Stopping...', 'missing active status cannot confirm exit');
+  widget.update({ enabled: true, running: false, active: false });
+  assert.equal(widget.error.hidden, true);
+  assertButtons(widget, ['start']);
+  widget.click('start');
+  stopRequest.finish({ success: true, status: { sections: { [section]: { running: false, active: false } } } });
+  widget.env.advance(18000);
+  assert.equal(widget.status.textContent, 'Starting...');
+  assert.equal(widget.error.hidden, true);
+  assertButtons(widget, []);
+});
+
+test('status: early stop request failure can recover before the deadline', () => {
+  const widget = statusWidget();
+  widget.update({ enabled: true, running: true, active: true });
+  widget.click('stop');
+  widget.env.requests[0].fail('error');
+  widget.env.advance(20000);
+  widget.update({ enabled: true, running: false, active: false });
+  widget.env.advance(10000);
+  assert.equal(widget.error.hidden, true);
+  assertButtons(widget, ['start']);
+});
 
 for (const mode of ['service error', 'malformed JSON', 'HTTP 500', 'network error', 'timeout']) {
   test(`status: action ${mode} reports failure and polling restores controls`, () => {

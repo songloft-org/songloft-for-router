@@ -31,6 +31,8 @@
 	var error = controls.querySelector('[data-error]');
 	var running = null;
 	var busy = false;
+	var pendingStop = null;
+	var stopTimedOut = false;
 	var settings = {};
 	var readonly = typeof L !== 'undefined' && typeof L.hasViewPermission === 'function' && L.hasViewPermission() === false;
 	var styles = {
@@ -40,6 +42,10 @@
 	var messages = {
 		running: <%=json.stringify(translate("Running"))%>,
 		stopped: <%=json.stringify(translate("Stopped"))%>,
+		stopping: <%=json.stringify(translate("Stopping..."))%>,
+		starting: <%=json.stringify(translate("Starting..."))%>,
+		restarting: <%=json.stringify(translate("Restarting..."))%>,
+		stopFailed: <%=json.stringify(translate("Unable to confirm the service stopped within 30 seconds. Check the system log."))%>,
 		disabled: <%=json.stringify(translate("Not enabled"))%>,
 		temporary: <%=json.stringify(translate("Running (not enabled)"))%>,
 		notRunning: <%=json.stringify(translate("The service is not running"))%>,
@@ -69,6 +75,10 @@
 
 	function updateStatus(reply) {
 		var data = reply && !reply.error && reply.sections && reply.sections[section];
+		if (stopTimedOut && isStopped(reply)) {
+			stopTimedOut = false;
+			error.hidden = true;
+		}
 		status.textContent = '';
 		if (!data) {
 			running = null;
@@ -90,6 +100,24 @@
 		updateButtons();
 	}
 
+	function isStopped(reply) {
+		var data = reply && !reply.error && reply.sections && reply.sections[section];
+		return data && data.running === false && data.active === false;
+	}
+
+	function finishStop(operation, reply, success) {
+		if (pendingStop !== operation)
+			return;
+		clearTimeout(operation.timer);
+		pendingStop = null;
+		busy = false;
+		stopTimedOut = !success;
+		error.hidden = success;
+		if (!success)
+			error.textContent = messages.stopFailed;
+		updateStatus(reply);
+	}
+
 	function openInterface() {
 		var host = window.location.hostname;
 		if (host.indexOf(':') !== -1 && host.charAt(0) !== '[')
@@ -109,12 +137,24 @@
 			return;
 		}
 		busy = true;
+		stopTimedOut = false;
 		error.hidden = true;
+		status.textContent = '';
+		appendStatus('label warning', messages[action === 'stop' ? 'stopping' : action === 'restart' ? 'restarting' : 'starting']);
 		updateButtons();
+		var operation = null;
+		if (action === 'stop') {
+			operation = {};
+			pendingStop = operation;
+			operation.timer = setTimeout(function() {
+				finishStop(operation, null, false);
+			}, 30000);
+		}
 		var xhr = new XMLHttpRequest();
 		xhr.open('POST', '<%=url([[admin]], [[services]], [[songloft]], [[action]])%>', true);
 		xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-		xhr.timeout = 30000;
+		// Restart includes up to 30 seconds stopping and 9 seconds starting.
+		xhr.timeout = action === 'restart' ? 45000 : 30000;
 		var reply = null;
 		xhr.onload = function() {
 			if (xhr.status === 200) {
@@ -122,6 +162,13 @@
 			}
 		};
 		xhr.onloadend = function() {
+			if (action === 'stop') {
+				if (reply && (reply.success || isStopped(reply.status)))
+					finishStop(operation, reply.status, true);
+				// A failed request does not prove the process is still running.
+				// Keep polling until stopped or the 30-second deadline expires.
+				return;
+			}
 			busy = false;
 			if (!reply || !reply.success) {
 				error.textContent = messages.failed;
@@ -137,7 +184,9 @@
 		buttons[i].addEventListener('click', function() { runAction(this); });
 	}
 	XHR.poll(3, '<%=url([[admin]], [[services]], [[songloft]], [[status]])%>', null, function(x, data) {
-		if (!busy)
+		if (pendingStop && isStopped(data))
+			finishStop(pendingStop, data, true);
+		else if (!busy)
 			updateStatus(data);
 	});
 })();

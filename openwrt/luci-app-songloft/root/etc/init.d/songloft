@@ -151,13 +151,16 @@ stop_now() {
 	# jsonfilter returns nonzero on no matches; still delete its respawn state.
 	pids="$(printf '%s\n' "$services" | jsonfilter -e "$selector")"
 	stop "$instance" || return 1
-	while [ "$attempt" -lt 60 ]; do
+	while :; do
 		pending=0
 		for pid in $pids; do
 			[ ! -d "/proc/$pid" ] || pending=1
 		done
 		[ "$pending" = 0 ] && return 0
-		sleep 0.1
+		[ "$attempt" -lt 30 ] || break
+		# Integer sleep works on BusyBox builds without fractional support.
+		# Recheck after the final wait so an exit at the deadline succeeds.
+		sleep 1 || return 1
 		attempt=$((attempt + 1))
 	done
 	fail "Unable to stop SongLoft completely"
