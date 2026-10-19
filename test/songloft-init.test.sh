@@ -79,6 +79,8 @@ reset_state() {
 	NEVER_RUNNING=0
 	LIVE_PID=0
 	LOGS=()
+	MKDIR_ARGS=()
+	PROCD_ENV=()
 	START_NOW=0
 	CHECK_ONLY=0
 	START_RESULT=0
@@ -103,7 +105,7 @@ config_foreach() {
 	return 0
 }
 logger() { LOGS+=("$*"); }
-mkdir() { return "$MKDIR_FAILURE"; }
+mkdir() { MKDIR_ARGS=("$@"); return "$MKDIR_FAILURE"; }
 sleep() {
 	assert_equal 'BusyBox-compatible sleep' 1 "$1"
 	(( SLEEP_FAILURE == 0 )) || return "$SLEEP_FAILURE"
@@ -122,7 +124,12 @@ sleep() {
 }
 date() { assert_equal 'fake date arguments' +%s "$*"; printf '%s\n' "$CLOCK"; }
 procd_open_instance() { CREATED+=("$1"); }
-procd_set_param() { :; }
+procd_set_param() {
+	if [[ "$1" == env ]]; then
+		shift
+		PROCD_ENV+=("$@")
+	fi
+}
 procd_append_param() { :; }
 procd_close_instance() { :; }
 service_running() { [[ ${INSTANCES[$1]-0} == 1 ]]; }
@@ -185,6 +192,35 @@ jsonfilter() {
 }
 
 normal_enabled() { invoke 0 start; assert_equal 'enabled instances only' "$A" "${CREATED[*]}"; }
+music_default() {
+	invoke 0 start
+	assert_equal 'create data directory' "$DB_FIXTURE" "${MKDIR_ARGS[1]}"
+	assert_equal 'create default music directory' "${DB_FIXTURE%/}/music" "${MKDIR_ARGS[2]}"
+	assert_equal 'pass default through environment' "MUSIC_DIR=${DB_FIXTURE%/}/music" "${PROCD_ENV[1]}"
+}
+music_custom() {
+	local path="$DB_FIXTURE/music library; literal \$(echo ignored)"
+	CONFIG[cfg000001.music_path]="$path"
+	invoke 0 start
+	assert_equal 'create custom music directory as one argument' "$path" "${MKDIR_ARGS[2]}"
+	assert_equal 'pass custom path unchanged through environment' "MUSIC_DIR=$path" "${PROCD_ENV[1]}"
+}
+music_clear() {
+	CONFIG[cfg000001.music_path]="$DB_FIXTURE/previous"
+	invoke 0 start
+	CONFIG[cfg000001.music_path]=''
+	CONFIG[cfg000001.db_path]="$DB_FIXTURE/"
+	PROCD_ENV=()
+	invoke 0 start
+	assert_equal 'clearing path restores current data directory default' "MUSIC_DIR=${DB_FIXTURE%/}/music" "${PROCD_ENV[1]}"
+}
+music_instances() {
+	CONFIG[cfg000001.music_path]="$DB_FIXTURE/custom"
+	CONFIG[cfg000002.enabled]=1
+	invoke 0 start
+	assert_equal 'first instance custom music path' "MUSIC_DIR=$DB_FIXTURE/custom" "${PROCD_ENV[1]}"
+	assert_equal 'second instance default does not inherit custom path' "MUSIC_DIR=${DB_FIXTURE%/}/music" "${PROCD_ENV[3]}"
+}
 normal_disabled() { CONFIG[cfg000001.enabled]=0; invoke 0 start; assert_equal 'no instances' 0 "${#CREATED[@]}"; }
 temporary_start() {
 	INSTANCES[$A]=1
@@ -309,6 +345,10 @@ run_case() {
 }
 
 run_case 'normal/boot start gates enabled instances' normal_enabled
+run_case 'default music directory is created and passed as MUSIC_DIR' music_default
+run_case 'custom music path preserves spaces and shell characters' music_custom
+run_case 'clearing music path restores data-directory default' music_clear
+run_case 'music paths remain independent across instances' music_instances
 run_case 'normal start with all sections disabled' normal_disabled
 run_case 'temporary start targets disabled section without UCI changes' temporary_start
 run_case 'temporary start of enabled section' temporary_enabled
@@ -331,6 +371,9 @@ run_case 'directory binary rejected before stopping' invalid_before_restart bin_
 run_case 'relative path rejected before stopping' invalid_before_restart db_path relative
 run_case 'root path rejected before stopping' invalid_before_restart db_path /
 run_case 'empty path rejected before stopping' invalid_before_restart db_path ''
+run_case 'relative music path rejected before stopping' invalid_before_restart music_path relative
+run_case 'root music path rejected before stopping' invalid_before_restart music_path /
+run_case 'double-slash music path rejected before stopping' invalid_before_restart music_path //music
 run_case 'nonnumeric port rejected before stopping' invalid_before_restart listen_port abc
 run_case 'zero port rejected before stopping' invalid_before_restart listen_port 0
 run_case 'out-of-range port rejected before stopping' invalid_before_restart listen_port 65536

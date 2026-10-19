@@ -43,7 +43,7 @@ opkg install /opt/tmp/songloft-lite_<版本号>_<架构>.ipk
    chmod +x /opt/etc/init.d/S80songloft
    ```
 
-3. 根据需要修改脚本中的 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 等环境变量，以及 `EXEHOME`（数据/工作目录，默认 `/opt/var/lib/songloft`）、`ARGS`（启动参数）等配置。
+3. 根据需要修改脚本中的 `ADMIN_USERNAME` / `ADMIN_PASSWORD`、`MUSIC_DIR` 等环境变量，以及 `EXEHOME`（数据/工作目录，默认 `/opt/var/lib/songloft`）、`ARGS`（启动参数）等配置。
 4. 执行 `/opt/etc/init.d/S80songloft start` 启动服务，此后即可交由 Entware 的 init.d 机制统一管理开机自启、启停等。
 
 此方式与通过 `.ipk` 安装的效果一致，区别仅在于二进制文件与启动脚本需要自行下载/放置，适合需要自定义二进制版本（如使用尚未打包的最新版本）的场景。
@@ -53,15 +53,50 @@ opkg install /opt/tmp/songloft-lite_<版本号>_<架构>.ipk
 安装后会生成 init.d 启动脚本 `/opt/etc/init.d/S80songloft`，内容如下（对应仓库中的 [`entware/songloft/files/S80songloft`](../../entware/songloft/files/S80songloft)）：
 
 - `EXEHOME`：SongLoft 的数据/工作目录，默认为 `/opt/var/lib/songloft`。
+- `MUSIC_DIR`：音乐目录，默认 `$EXEHOME/music`，即 `/opt/var/lib/songloft/music`；需要自定义时直接修改脚本中的这一行，使用绝对路径。
 - `ADMIN_USERNAME` / `ADMIN_PASSWORD`：以环境变量方式设置管理员账号密码，默认均为 `admin`，**建议安装后尽快修改**。
 - `ARGS`：额外的启动参数，默认留空，可参考 SongLoft 官方文档支持的命令行参数按需填写（如监听端口、`base-path` 等）。
 - 进程通过 `start-stop-daemon` 以 `PATH` 中可搜索到的 `songloft` 二进制（如 `/opt/usr/bin/songloft`）启动。
 
 修改上述配置后，执行 `/opt/etc/init.d/S80songloft restart` 使其生效。
 
+### 设置音乐路径
+
+修改 `/opt/etc/init.d/S80songloft` 中的 `export MUSIC_DIR="$EXEHOME/music"`，例如：
+
+```bash
+export MUSIC_DIR="/mnt/usb/music library"
+```
+
+保存后执行 `/opt/etc/init.d/S80songloft restart` 生效。启动或重启时，脚本会创建工作目录和音乐目录，创建失败则退出；停止、查询状态以及禁用服务时不会创建目录。路径中可以包含空格，已有音乐不会自动迁移。每次启动时，`MUSIC_DIR` 会通过环境变量传给服务端，覆盖数据库中保存的音乐路径。
+
+### 服务端支持的环境变量
+
+以下已核对服务端 `v2.13.3` 和当前本地源码的启动配置：
+
+| 环境变量 | 用途及默认行为 |
+| --- | --- |
+| `ADMIN_USERNAME` | 管理员用户名，默认 `admin` |
+| `ADMIN_PASSWORD` | 管理员密码，默认 `admin` |
+| `LISTEN_PORT` | 监听端口，默认 `58091` |
+| `DB_PATH` | **数据库文件**路径，默认 `data/songloft.db`；相对路径基于 `EXEHOME`，不是整个工作目录 |
+| `BASE_PATH` | 反向代理的 URL 基础路径，例如 `/songloft`；默认无前缀 |
+| `MUSIC_DIR` | 音乐目录；本启动脚本默认传入 `$EXEHOME/music` |
+| `GOMEMLIMIT` | Go 内存软限制，例如 `128MiB`；服务端未设置时默认为 `2GiB`，不是进程内存硬上限 |
+| `GOGC` | Go 垃圾回收目标百分比；服务端未设置时默认为 `50` |
+| `IN_DOCKER` | 值为 `true` 时按 Docker 部署处理，影响更新流程；普通 Entware 部署无需设置 |
+
+可以在启动脚本中添加相应的 `export` 行；脚本中已配置的管理员账号、密码和音乐路径直接修改对应行。其他变量也可从调用环境传入，例如：
+
+```bash
+LISTEN_PORT=58092 /opt/etc/init.d/S80songloft restart
+```
+
+`EXEHOME`、`ARGS` 和 `ENABLED` 是启动脚本配置，不是服务端读取的环境变量。修改 `DB_PATH` 不会改变工作目录、日志目录或默认音乐目录。显式设置不同于默认值的命令行参数通常优先于环境变量；端口和数据库参数若仍为默认值，服务端仍会读取对应的环境变量。扫描等其他业务配置保存在服务端数据库中。
+
 ### 修改管理员账号密码
 
-无论通过 `.ipk` 安装还是手动部署，管理员账号密码均默认写死在 `/opt/etc/init.d/S80songloft` 脚本开头的环境变量中，**默认用户名/密码均为 `admin`**，为安全起见请安装后尽快修改：
+无论通过 `.ipk` 安装还是手动部署，管理员账号密码均在 `/opt/etc/init.d/S80songloft` 脚本开头配置；**默认用户名/密码均为 `admin`**，为安全起见请安装后尽快修改：
 
 ```bash
 vi /opt/etc/init.d/S80songloft

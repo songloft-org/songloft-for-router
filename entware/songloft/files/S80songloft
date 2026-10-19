@@ -1,14 +1,25 @@
 #!/bin/sh
 
+EXEHOME=/opt/var/lib/songloft
+
 export ADMIN_USERNAME=admin
 export ADMIN_PASSWORD=admin
+export MUSIC_DIR="$EXEHOME/music"
 
 ENABLED=${ENABLED:-yes}
 PROCS=songloft
-EXEHOME=/opt/var/lib/songloft
+
 PREARGS="start-stop-daemon -S -b -m -p /opt/var/run/$PROCS.pid -d $EXEHOME"
 ARGS=""
 DESC=$PROCS
 PATH=/opt/sbin:/opt/bin:/opt/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+case "$1" in
+	start|restart)
+		if [ "$ENABLED" = yes ]; then
+			mkdir -p "$EXEHOME" "$MUSIC_DIR" || exit 1
+		fi
+		;;
+esac
 
 . /opt/etc/init.d/rc.func

@@ -166,6 +166,23 @@ for _, path in ipairs({ "/data/songloft", "/mnt/music library", "/", "relative",
 	end)
 end
 
+for _, path in ipairs({ "", "/mnt/music library", "/", "relative", "//music", "/music\nfolder" }) do
+	local value = path
+	test("music path " .. string.format("%q", value), function()
+		local map, state = fixture()
+		state.forms.one = { music_path = value }
+		state.saved.one = { music_path = "/previous" }
+		map.options.music_path:parse("one")
+		local valid = value == "" or value == "/mnt/music library"
+		equal(#state.errors, valid and 0 or 1, "validation errors")
+		if valid then
+			equal(state.saved.one.music_path, value ~= "" and value or nil)
+		else
+			equal(state.saved.one.music_path, "/previous", "invalid path preserves saved setting")
+		end
+	end)
+end
+
 test("unchanged valid path is not rewritten", function()
 	local _, state = parse_case("1", "/data", "/data", 0, 0)
 	equal(#state.writes, 0)

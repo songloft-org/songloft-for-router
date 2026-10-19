@@ -115,9 +115,6 @@ start_songloft() {
 		return 1
 	fi
 
-	# 停止旧进程
-	stop_proc
-
 	# 直接 export dbus 变量
 	export LISTEN_PORT="${songloft_listen_port:-58091}"
 	export ADMIN_USERNAME="${songloft_admin_username}"
@@ -126,8 +123,20 @@ start_songloft() {
 
 	# cd 到数据根目录，songloft 以当前目录作为工作目录
 	_work_dir="${songloft_db_path:-/jffs/softcenter/songloft}"
-	mkdir -p "${_work_dir}" >/dev/null 2>&1
+	export MUSIC_DIR="${songloft_music_path:-${_work_dir%/}/music}"
+	case "${MUSIC_DIR}" in
+		/|//*|"") echo_date "请填写音乐路径的绝对路径：${MUSIC_DIR}" >>"${LOG_FILE}"; return 1 ;;
+		/*) ;;
+		*) echo_date "请填写音乐路径的绝对路径：${MUSIC_DIR}" >>"${LOG_FILE}"; return 1 ;;
+	esac
+	if ! mkdir -p "${_work_dir}" "${MUSIC_DIR}"; then
+		echo_date "无法创建工作目录或音乐目录：${_work_dir} / ${MUSIC_DIR}" >>"${LOG_FILE}"
+		return 1
+	fi
 	cd "${_work_dir}" || { echo_date "无法进入目录：${_work_dir}" >>"${LOG_FILE}"; return 1; }
+
+	# 路径检查通过后再停止旧进程
+	stop_proc
 
 	echo_date "启动 SongLoft..." >>"${LOG_FILE}"
 	echo_date "执行：cd ${_work_dir} && ${BIN}" >>"${LOG_FILE}"

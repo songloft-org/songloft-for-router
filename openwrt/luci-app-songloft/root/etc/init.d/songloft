@@ -35,7 +35,7 @@ valid_section() {
 
 start_instance() {
 	local cfg="$1"
-	local bin enabled listen_port db_path base_path admin_username admin_password bin_path
+	local bin enabled listen_port db_path music_path base_path admin_username admin_password bin_path
 
 	[ -z "$2" ] || [ "$cfg" = "$2" ] || return 0
 	# config_get works on both opkg and apk based OpenWrt releases.
@@ -43,6 +43,7 @@ start_instance() {
 	[ "$enabled" = 1 ] || [ "$START_NOW" = 1 ] || return 0
 	config_get listen_port "$cfg" listen_port 58091
 	config_get db_path "$cfg" db_path
+	config_get music_path "$cfg" music_path
 	config_get base_path "$cfg" base_path
 	config_get admin_username "$cfg" admin_username
 	config_get admin_password "$cfg" admin_password
@@ -52,6 +53,13 @@ start_instance() {
 		/|"") fail "请先指定非根目录的绝对路径作为数据目录（db_path）"; return 1 ;;
 		/*) ;;
 		*) fail "请先指定非根目录的绝对路径作为数据目录（db_path）"; return 1 ;;
+	esac
+
+	music_path="${music_path:-${db_path%/}/music}"
+	case "$music_path" in
+		/|//*|"") fail "请指定非根目录的绝对路径作为音乐目录（music_path）"; return 1 ;;
+		/*) ;;
+		*) fail "请指定非根目录的绝对路径作为音乐目录（music_path）"; return 1 ;;
 	esac
 
 	bin="${bin_path:-$PROG_DEFAULT}"
@@ -67,17 +75,17 @@ start_instance() {
 		return 1
 	fi
 
-	if ! mkdir -p "$db_path" "$db_path/music" || [ ! -w "$db_path" ] || [ ! -x "$db_path" ]; then
-		fail "无法创建或访问工作目录和音乐目录：$db_path"
+	if ! mkdir -p "$db_path" "$music_path" || [ ! -w "$db_path" ] || [ ! -x "$db_path" ]; then
+		fail "无法创建或访问工作目录或音乐目录：$db_path / $music_path"
 		return 1
 	fi
 	[ "$CHECK_ONLY" != 1 ] || return 0
 
 	EXPECTED_INSTANCES="$EXPECTED_INSTANCES songloft.$cfg"
 	procd_open_instance "songloft.$cfg"
-	# SongLoft resolves data/ and music/ relative to its working directory.
+	# Data remains relative to the working directory; MUSIC_DIR selects the library.
 	procd_set_param command /bin/sh -c 'cd "$1" || exit 1; exec "$2"' songloft "$db_path" "$bin"
-	procd_set_param env LISTEN_PORT="$listen_port"
+	procd_set_param env LISTEN_PORT="$listen_port" MUSIC_DIR="$music_path"
 	[ -n "$base_path" ] && procd_append_param env BASE_PATH="$base_path"
 	[ -n "$admin_username" ] && procd_append_param env ADMIN_USERNAME="$admin_username"
 	[ -n "$admin_password" ] && procd_append_param env ADMIN_PASSWORD="$admin_password"

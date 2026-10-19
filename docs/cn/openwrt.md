@@ -35,8 +35,8 @@ make package/luci-app-songloft/compile V=s
 
 ## 配置说明
 
-- 配置文件：`/etc/config/songloft`（UCI 格式），对应仓库中的 [`openwrt/songloft/files/songloft.config`](../../openwrt/songloft/files/songloft.config)。
-- 启动脚本：`/etc/init.d/songloft`（procd 管理），对应 [`openwrt/songloft/files/songloft.init`](../../openwrt/songloft/files/songloft.init)。
+- 配置文件：`/etc/config/songloft`（UCI 格式），对应仓库中的 [`openwrt/luci-app-songloft/root/etc/config/songloft`](../../openwrt/luci-app-songloft/root/etc/config/songloft)。
+- 启动脚本：`/etc/init.d/songloft`（procd 管理），对应 [`openwrt/luci-app-songloft/root/etc/init.d/songloft`](../../openwrt/luci-app-songloft/root/etc/init.d/songloft)。
 
 UCI 配置项：
 
@@ -44,7 +44,8 @@ UCI 配置项：
 | --- | --- | --- |
 | `enabled` | `0` | 是否启用服务 |
 | `listen_port` | `58091` | 监听端口，对应环境变量 `LISTEN_PORT` |
-| `db_path` | 空（必须自行设置） | 可写的持久化数据/工作目录；音乐文件从该目录下的 `music/` 子目录读取 |
+| `db_path` | 空（必须自行设置） | 可写的持久化数据/工作目录 |
+| `music_path` | 空（使用 `db_path/music`） | 音乐目录的绝对路径，通过环境变量 `MUSIC_DIR` 传给服务端；目录不存在时自动创建 |
 | `base_path` | 空 | URL 基础路径，对应环境变量 `BASE_PATH`，用于反向代理场景 |
 | `admin_username` | 空 | 管理员用户名，对应环境变量 `ADMIN_USERNAME` |
 | `admin_password` | 空 | 管理员密码，对应环境变量 `ADMIN_PASSWORD` |
@@ -53,14 +54,17 @@ UCI 配置项：
 
 **首次启用前必须指定数据目录**：新安装默认不设置 `db_path`，也不会自动向 `/etc/songloft/data` 写数据。请选择空间足够、可写的持久化存储（例如已挂载的外置存储），在 LuCI「数据目录」填写其绝对路径（例如 `/mnt/storage/songloft`），再启用服务并保存配置。
 
-启动脚本会创建指定目录及其 `music/` 子目录；本例的音乐目录是 `/mnt/storage/songloft/music/`。将音乐文件放入该子目录即可。如果音乐已在其他目录（如 `/mnt/storage/my-music`），可在启动前将其绑定挂载到 `music/`；挂载需在每次启动 SongLoft 前完成，重启设备后也要重新挂载，不要只执行一次：
+音乐路径留空时，启动脚本会创建数据目录及其 `music/` 子目录；本例的音乐目录是 `/mnt/storage/songloft/music/`。如果音乐已在其他目录（如 `/mnt/storage/my-music`），直接在 LuCI「音乐路径」填写该目录的绝对路径即可，也可以使用 UCI：
 
 ```sh
-mkdir -p /mnt/storage/songloft/music
-mount --bind /mnt/storage/my-music /mnt/storage/songloft/music
+uci set songloft.@songloft[0].music_path='/mnt/storage/my-music'
+uci commit songloft
+/etc/init.d/songloft restart
 ```
 
-`db_path` 是工作目录，**不要直接设为已有音乐文件夹**，否则数据库等工作数据也会写入该文件夹。确保所选存储在服务启动前已挂载且可写；`web_path` 指网页静态资源目录，不是音乐目录。手工部署二进制时，只有使用本项目的启动脚本才会读取这些 UCI 设置。
+启动脚本会创建并使用选定的音乐目录；使用自定义路径时无需绑定挂载，也不会额外创建默认的 `music/`。清空音乐路径后，下次启动恢复为当前数据目录下的 `music/`。每次启动都会通过 `MUSIC_DIR` 设置曲库路径并覆盖服务端数据库中保存的路径。
+
+`db_path` 是工作目录，**不要直接设为已有音乐文件夹**，否则数据库等工作数据也会写入该文件夹。确保所选存储在服务启动前已挂载，数据目录可写、音乐目录可读。手工部署二进制时，只有使用本项目的启动脚本才会读取这些 UCI 设置。
 
 在 LuCI 页面保存配置后会自动重新加载服务；如需手动重新加载或重启服务，可执行：
 

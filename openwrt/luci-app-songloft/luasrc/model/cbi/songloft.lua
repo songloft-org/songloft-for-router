@@ -35,7 +35,7 @@ port.default = "58091"
 port.rmempty = false
 
 db_path = s:taboption("basic", Value, "db_path", translate("Data Directory"),
-	translate("Choose a writable persistent directory before enabling SongLoft. SongLoft stores its data here and reads music from the music subdirectory. To use an existing music folder, bind mount it to this subdirectory before starting the service."))
+	translate("Choose a writable persistent directory before enabling SongLoft. SongLoft stores its data here. The music directory can be configured separately and defaults to the music subdirectory."))
 db_path.rmempty = false
 function db_path.validate(self, value)
 	if value and value:match("^/[^/]") and not value:find("%c") then
@@ -58,6 +58,17 @@ function db_path.parse(self, section, novld)
 	self.rmempty = not required
 	Value.parse(self, section, novld)
 	self.rmempty = rmempty
+end
+
+music_path = s:taboption("basic", Value, "music_path", translate("Music Directory"),
+	translate("Leave empty to use the music subdirectory of the data directory. An absolute path selects another music folder. The directory is created if missing and passed to SongLoft through MUSIC_DIR on every start."))
+music_path.rmempty = true
+function music_path.validate(self, value)
+	if value == nil or value == "" then return "" end
+	if value:match("^/[^/]") and not value:find("%c") then
+		return value
+	end
+	return nil, translate("Enter an absolute path for the music directory")
 end
 
 base_path = s:taboption("basic", Value, "base_path", translate("URL Base Path"),

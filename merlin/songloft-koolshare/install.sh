@@ -38,6 +38,7 @@ install_now() {
 	[ -z "$(dbus get ${module}_enable 2>/dev/null)" ]           && dbus set ${module}_enable="0"
 	[ -z "$(dbus get ${module}_listen_port 2>/dev/null)" ]      && dbus set ${module}_listen_port="58091"
 	[ -z "$(dbus get ${module}_db_path 2>/dev/null)" ]          && dbus set ${module}_db_path="/koolshare/${module}"
+	[ -z "$(dbus get ${module}_music_path 2>/dev/null)" ]       && dbus set ${module}_music_path=""
 	[ -z "$(dbus get ${module}_base_path 2>/dev/null)" ]        && dbus set ${module}_base_path=""
 	[ -z "$(dbus get ${module}_admin_username 2>/dev/null)" ]   && dbus set ${module}_admin_username=""
 	[ -z "$(dbus get ${module}_admin_password 2>/dev/null)" ]   && dbus set ${module}_admin_password=""

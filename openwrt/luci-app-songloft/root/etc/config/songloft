@@ -2,6 +2,7 @@ config songloft
 	option enabled '0'
 	option listen_port '58091'
 	option db_path ''
+	option music_path ''
 	option base_path ''
 	option admin_username ''
 	option admin_password ''

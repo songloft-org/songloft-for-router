@@ -29,13 +29,16 @@
 | --- | --- | --- |
 | 启用 SongLoft | - | 开启/关闭插件，关闭后会自动停止进程 |
 | 监听端口 | `LISTEN_PORT` | 对应 `-port` 参数，默认 `58091` |
-| 根目录 | `DB_PATH` | 数据/工作目录，默认 `/jffs/softcenter/songloft`（koolshare 版为 `/koolshare/songloft`） |
+| 根目录 | - | 数据/工作目录，启动前切换到此目录；默认 `/jffs/softcenter/songloft`（koolshare 版为 `/koolshare/songloft`） |
+| 音乐路径 | `MUSIC_DIR` | 留空使用根目录下的 `music/`，也可填写已有音乐目录的绝对路径；目录不存在时自动创建 |
 | 管理员用户名 | `ADMIN_USERNAME` | 对应 `-username` 参数，留空则不设置 |
 | 管理员密码 | `ADMIN_PASSWORD` | 对应 `-password` 参数，留空则不设置 |
 | URL 基础路径 | `BASE_PATH` | 对应 `-base-path` 参数，用于反向代理场景，例如 `/songloft` |
 | 二进制路径 | - | SongLoft 可执行文件路径，**必须手动指定**为自行下载的二进制文件所在路径（如放置在外置存储上）；留空则使用默认路径 `/jffs/softcenter/bin/songloft`，但由于插件包内不含二进制文件，需自行将下载好的文件放置到该默认路径下 |
 
-> 环境变量优先级高于表单配置：`ADMIN_USERNAME` / `ADMIN_PASSWORD` / `LISTEN_PORT` / `DB_PATH` / `BASE_PATH`。
+启动脚本将表单配置通过 `ADMIN_USERNAME` / `ADMIN_PASSWORD` / `LISTEN_PORT` / `MUSIC_DIR` / `BASE_PATH` 环境变量传给服务端。「根目录」控制工作目录，不是后端的 `DB_PATH`（数据库文件路径）。
+
+音乐路径留空时，例如根目录为 `/koolshare/songloft`，启动时会创建并使用 `/koolshare/songloft/music`。如音乐已在 `/mnt/sda1/Music`，直接填写该绝对路径即可，无需移动文件或绑定挂载。清空音乐路径后，下次启动恢复为当前根目录下的 `music/`。每次启动都会通过 `MUSIC_DIR` 设置曲库路径并覆盖服务端数据库中保存的路径。
 
 配置完成后点击"提交"即可生效，页面会实时显示运行状态（进程 PID），并支持点击"查看日志"弹窗实时查看运行日志。
 
@@ -50,4 +53,4 @@
 ## 常见问题
 
 - **修改配置后不生效？** 请确认页面显示的"运行状态"是否已刷新为最新 PID，若长时间未变化可尝试重新点击"提交"或查看运行日志排查报错。
-- **希望把数据放到外置硬盘？** 将"根目录"和"二进制路径"分别指向外置存储上的目录/文件即可。
+- **希望把数据放到外置硬盘？** 将"根目录"和"二进制路径"分别指向外置存储上的目录/文件即可；已有音乐文件夹可以通过"音乐路径"单独指定。

@@ -120,6 +120,8 @@ function fill_form() {
                 ? dbus["songloft_listen_port"] : "58091";
         E("songloft_db_path").value = (dbus["songloft_db_path"] && dbus["songloft_db_path"] != "null")
                 ? dbus["songloft_db_path"] : "";
+        E("songloft_music_path").value = (dbus["songloft_music_path"] && dbus["songloft_music_path"] != "null")
+                ? dbus["songloft_music_path"] : "";
         E("songloft_base_path").value = (dbus["songloft_base_path"] && dbus["songloft_base_path"] != "null")
                 ? dbus["songloft_base_path"] : "";
         E("songloft_admin_username").value = (dbus["songloft_admin_username"] && dbus["songloft_admin_username"] != "null")
@@ -136,6 +138,7 @@ function update_visibility() {
         E("tr_status").style.display    = display;
         E("tr_port").style.display      = display;
         E("tr_db_path").style.display   = display;
+        E("tr_music_path").style.display = display;
         E("tr_username").style.display  = display;
         E("tr_password").style.display  = display;
         E("tr_base_path").style.display = display;
@@ -146,6 +149,7 @@ function apply_config() {
         var enable = E("songloft_enable").checked ? "1" : "0";
         var port = $.trim(E("songloft_listen_port").value || "");
         var dbPath = $.trim(E("songloft_db_path").value || "");
+        var musicPath = $.trim(E("songloft_music_path").value || "");
         var basePath = $.trim(E("songloft_base_path").value || "");
         var username = $.trim(E("songloft_admin_username").value || "");
         var password = $.trim(E("songloft_admin_password").value || "");
@@ -157,12 +161,16 @@ function apply_config() {
                         alert("监听端口必须是 1~65535 之间的数字！"); return;
                 }
                 if (!dbPath) { alert("根目录不能为空！"); return; }
+                if (musicPath && (!/^\/[^/]/.test(musicPath) || /[\x00-\x1f\x7f]/.test(musicPath))) {
+                        alert("音乐路径必须是非根目录的绝对路径，留空则使用根目录下的 music 子目录！"); return;
+                }
         }
 
         var fields = {};
         fields["songloft_enable"]         = enable;
         fields["songloft_listen_port"]    = port;
         fields["songloft_db_path"]        = dbPath;
+        fields["songloft_music_path"]     = musicPath;
         fields["songloft_base_path"]      = basePath;
         fields["songloft_admin_username"] = username;
         fields["songloft_admin_password"] = password;
@@ -321,7 +329,7 @@ function openWebInterface() {
 
                                                                                 <div class="SimpleNote">
                                                                                         <div>1. SongLoft 是一个轻量级音乐库管理与串流服务，支持通过环境变量或下方表单配置启动参数。</div>
-                                                                                        <div>2. 环境变量优先级高于表单配置：<span style="color:#00c6ff;font-weight:600;">ADMIN_USERNAME / ADMIN_PASSWORD / LISTEN_PORT / DB_PATH / BASE_PATH</span>。</div>
+                                                                                        <div>2. 表单配置通过环境变量传给服务端：<span style="color:#00c6ff;font-weight:600;">ADMIN_USERNAME / ADMIN_PASSWORD / LISTEN_PORT / MUSIC_DIR / BASE_PATH</span>。</div>
                                                                                         <div>3. 若需自定义二进制路径（如外置存储），可在"二进制路径"中填写绝对路径；留空则使用默认路径 <span style="color:#00c6ff;">/koolshare/bin/songloft</span>。</div>
                                                                                 </div>
 
@@ -367,6 +375,15 @@ function openWebInterface() {
                                                                                                                 placeholder="例如：/koolshare/songloft"
                                                                                                                 autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
                                                                                                         <span style="margin-left:10px;" class="hint-color">工作目录</span>
+                                                                                                </td>
+                                                                                        </tr>
+                                                                                        <tr id="tr_music_path">
+                                                                                                <th>音乐路径<br/><span class="hint-color" style="font-weight:normal;font-size:11px;">环境变量：MUSIC_DIR</span></th>
+                                                                                                <td>
+                                                                                                        <input id="songloft_music_path" class="input_ss_table" style="width:360px;" value=""
+                                                                                                                placeholder="留空使用根目录下的 music 子目录"
+                                                                                                                autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+                                                                                                        <span style="margin-left:10px;" class="hint-color">绝对路径，目录不存在时自动创建</span>
                                                                                                 </td>
                                                                                         </tr>
                                                                                         <tr id="tr_username">

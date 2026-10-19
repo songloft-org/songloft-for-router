@@ -45,6 +45,8 @@ printf '\n== CBI model and apply callback ==\n'
 "$LUA" "$test_dir/songloft-cbi.test.lua" "$root"
 printf '\n== LuCI status and log views ==\n'
 SONGLOFT_TEST_ROOT="$root" "$NODE" --test "$test_dir/songloft-views.test.cjs"
+printf '\n== Merlin music directory and startup environment ==\n'
+SONGLOFT_TEST_ROOT="$root" "$NODE" --test "$test_dir/songloft-merlin.test.cjs"
 printf '\n== Init script and apply registration ==\n'
 "$BASH_BIN" -n "$test_dir/songloft-init.test.sh"
 "$BASH_BIN" "$test_dir/songloft-init.test.sh" "$root"
