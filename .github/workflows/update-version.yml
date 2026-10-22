@@ -2,8 +2,8 @@ name: Check upstream and build router packages
 
 on:
   schedule:
-    # Daily at 20:00 UTC (04:00 the next day in Asia/Shanghai).
-    - cron: '0 20 * * *'
+    # Daily at 01:00 UTC (09:00 in Asia/Shanghai).
+    - cron: '0 1 * * *'
   workflow_dispatch:
 
 permissions:
