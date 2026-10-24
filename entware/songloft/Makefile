@@ -5,12 +5,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=songloft
-PKG_VERSION:=2.13.5
+PKG_VERSION:=2.13.6
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/songloft-org/songloft/tar.gz/v$(PKG_VERSION)?
-PKG_HASH:=1c98a7dbe26b177532db65318e752d5d06188218482ac4cd8e54a11b4ca0738d
+PKG_HASH:=4f59d8d5eb5a0ef575c8f0740abc7a88718c6549286d78621cb4e5ad58ecc15d
 
 # GitHub 源码压缩包不包含子模块；单独下载上游锁定的 pkg/tag 提交。
 SONGLOFT_TAG_VERSION:=64e12e525cc5c9a5ee66826c98dbaed42534af8b
@@ -26,7 +26,7 @@ PKG_BUILD_PARALLEL:=1
 SONGLOFT_WEB_SOURCE:=songloft-web-embedded-v$(PKG_VERSION).tar.gz
 SONGLOFT_WEB_URL:=https://github.com/songloft-org/songloft-player/releases/download/v$(PKG_VERSION)
 SONGLOFT_WEB_URL_FILE:=songloft-web-embedded.tar.gz
-SONGLOFT_WEB_HASH:=d44000b760cd23d0f6b0ef454d0afe9924c38d7cdd29437e1982ccbd637f192c
+SONGLOFT_WEB_HASH:=e094cbb2a493b1d9028f946dd6ddec66b8b35808974e0b74fcdc3ea1ab9fc27e
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(BUILD_VARIANT)/$(PKG_NAME)-$(PKG_VERSION)
 
