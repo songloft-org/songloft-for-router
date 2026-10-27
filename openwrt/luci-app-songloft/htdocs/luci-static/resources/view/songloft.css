@@ -27,7 +27,8 @@
 	overflow-wrap: anywhere;
 }
 
-.songloft-log-content {
+/* Override theme form-control widths (e.g. Argon's .cbi-value textarea). */
+.songloft-log-view .songloft-log-content {
 	box-sizing: border-box;
 	display: block;
 	width: 100%;

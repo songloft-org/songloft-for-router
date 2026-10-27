@@ -404,10 +404,10 @@ test('log: route and no-store support repeated latest reads (source contract onl
   assert.match(controller, /latest_log\(luci\.http\.formvalue\("section"\)\)/);
 });
 
-test('log: native full-width 18-row textarea inherits LuCI theme styling', () => {
+test('log: native full-width 40-row textarea inherits LuCI theme styling', () => {
   const tag = templates.log.match(/<textarea\b(?:[^"'>]|"[^"]*"|'[^']*')*>/)[0];
   assert.match(tag, /class="cbi-input-textarea songloft-log-content"/);
-  assert.match(tag, /rows="18"/);
+  assert.match(tag, /rows="40"/);
   assert.match(tag, /aria-label="<%:Runtime log%>"/);
   const contentStyle = css.match(/\.songloft-log-content\s*\{([^}]*)\}/)[1];
   assert.match(contentStyle, /width:\s*100%/);
