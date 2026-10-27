@@ -17,7 +17,49 @@
 
 ## 编译方式
 
-由于暂无官方源，需要将本项目的 `openwrt/songloft` 与 `openwrt/luci-app-songloft` 加入 OpenWrt 编译环境的 `package` 目录后自行编译：
+### 使用 feed
+
+在 OpenWrt / ImmortalWrt 源码目录的 `feeds.conf.default` 中添加以下一行；如果已有 `feeds.conf`，则添加到该文件中：
+
+```text
+src-git --root=openwrt songloft https://github.com/songloft-org/songloft-for-router.git
+```
+
+此方式要求构建环境的 `scripts/feeds` 支持 `--root`。它会拉取完整仓库，但只扫描 `openwrt/` 子目录，避免将 `entware/songloft/Makefile` 识别为 OpenWrt 包而产生同名冲突。构建环境还需提供标准的 LuCI 和 packages/golang feed。
+
+在固件源码根目录更新并安装 feed：
+
+```sh
+./scripts/feeds update songloft
+./scripts/feeds install -p songloft luci-app-songloft songloft
+make menuconfig
+```
+
+在 **LuCI → Applications** 中选择 `luci-app-songloft`。如需同时编译服务端，在 **Network** 中选择 `songloft`（内置播放器 Web UI）或 `songloft-lite`（不含播放器 Web UI），二选一；两个变体都由 `openwrt/songloft/Makefile` 定义，因此扫描日志只显示一个 `songloft` 源码包目录。
+
+如果只需要 LuCI 管理页面，在 `.config` 或固件的配置模板中设置：
+
+```text
+CONFIG_PACKAGE_luci-app-songloft=y
+# CONFIG_PACKAGE_songloft is not set
+# CONFIG_PACKAGE_songloft-lite is not set
+```
+
+`luci-app-songloft` 不强制依赖 SongLoft 二进制，可以自行部署服务端。`feeds install` 仅将包源码链接加入构建目录，实际是否编译、打包由配置决定；LuCI 的依赖由 `make defconfig` 自动选中。
+
+```sh
+make defconfig
+# 单独编译 LuCI 包
+make package/feeds/songloft/luci-app-songloft/compile V=s
+# 若已选中服务端，也可单独编译其源码包
+# make package/feeds/songloft/songloft/compile V=s
+# 或编译完整固件
+# make -j"$(nproc)"
+```
+
+### 手动复制包目录
+
+不支持 `--root` 的构建环境，可以将本项目的 `openwrt/songloft` 与 `openwrt/luci-app-songloft` 复制到 OpenWrt 编译环境的 `package` 目录后自行编译：
 
 ```bash
 # 假设已准备好 OpenWrt SDK / 完整编译环境，位于 openwrt-src 目录
