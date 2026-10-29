@@ -38,7 +38,7 @@ jobs:
           fi
 
   openwrt-packages:
-    name: OpenWrt ${{ matrix.sdk }}-${{ matrix.arch }}
+    name: OpenWrt server ${{ matrix.sdk }}-${{ matrix.arch }}
     needs: create-release
     runs-on: ubuntu-latest
     strategy:
@@ -70,10 +70,10 @@ jobs:
           FEED_DIR: ${{ github.workspace }}/openwrt
           NO_SHFMT_CHECK: true
           # songloft-lite 是 songloft 源包的默认构建变体；SDK Action 只能调用源包目标 package/songloft/*。
-          PACKAGES: songloft luci-app-songloft
+          PACKAGES: songloft
           V: sc
 
-      - name: Upload packages to release
+      - name: Upload server APKs to release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ env.RELEASE_TAG }}
@@ -83,24 +83,14 @@ jobs:
           package_dir="bin/packages/${ARCH}/action"
           shopt -s nullglob
           # action feed 目录还会包含自动构建的依赖包（如 ca-bundle）；只发布本项目的包。
-          packages=(
-            "${package_dir}"/songloft-[0-9]*.ipk
-            "${package_dir}"/songloft-lite-[0-9]*.ipk
-            "${package_dir}"/luci-app-songloft-[0-9]*.ipk
-            "${package_dir}"/luci-i18n-songloft-zh-cn-[0-9]*.ipk
-            "${package_dir}"/songloft-[0-9]*.apk
-            "${package_dir}"/songloft-lite-[0-9]*.apk
-            "${package_dir}"/luci-app-songloft-[0-9]*.apk
-            "${package_dir}"/luci-i18n-songloft-zh-cn-[0-9]*.apk
-          )
-
-          translations=("${package_dir}"/luci-i18n-songloft-zh-cn-[0-9]*.ipk "${package_dir}"/luci-i18n-songloft-zh-cn-[0-9]*.apk)
-          if ((${#translations[@]} == 0)); then
-            echo "No SongLoft Chinese translation package found in ${package_dir}" >&2
+          full=("${package_dir}"/songloft-[0-9]*.apk)
+          lite=("${package_dir}"/songloft-lite-[0-9]*.apk)
+          if ((${#full[@]} == 0 || ${#lite[@]} == 0)); then
+            echo "Missing SongLoft full or lite APK in ${package_dir}" >&2
             exit 1
           fi
 
-          for package in "${packages[@]}"; do
+          for package in "${full[@]}" "${lite[@]}"; do
             filename=$(basename "$package")
             extension="${filename##*.}"
             stem="${filename%.*}"
@@ -109,12 +99,18 @@ jobs:
             gh release upload "$TAG" "/tmp/${release_name}" --clobber
           done
 
-  openwrt-24-luci:
-    name: OpenWrt 24.10 LuCI (all)
+  openwrt-luci:
+    name: OpenWrt LuCI ${{ matrix.format }} (all)
     needs: create-release
     runs-on: ubuntu-latest
-    env:
-      SDK: '24.10.8'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sdk: '24.10.8'
+            format: ipk
+          - sdk: '25.12.5'
+            format: apk
 
     steps:
       - name: Checkout repository
@@ -122,43 +118,59 @@ jobs:
         with:
           ref: ${{ env.RELEASE_TAG }}
 
-      - name: Build OpenWrt 24.10 LuCI packages
+      - name: Build universal LuCI packages
         uses: openwrt/gh-action-sdk@v11
         env:
-          # LuCI 和翻译包的 PKGARCH 为 all；只需使用一个 SDK 构建，不编译 SongLoft 服务端。
-          ARCH: x86_64-${{ env.SDK }}
+          # LuCI 和翻译包的 PKGARCH 为 all；每种格式只用 x86_64 SDK 构建一次。
+          ARCH: x86_64-${{ matrix.sdk }}
           FEED_DIR: ${{ github.workspace }}/openwrt
           NO_SHFMT_CHECK: true
           PACKAGES: luci-app-songloft
           V: sc
 
-      - name: Upload LuCI IPKs to release
+      - name: Upload universal LuCI packages to release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ env.RELEASE_TAG }}
+          FORMAT: ${{ matrix.format }}
         run: |
           set -euo pipefail
           package_dir="bin/packages/x86_64/action"
           shopt -s nullglob
-          # 24.10 的 IPK 文件名使用下划线分隔包名、版本和架构。
-          apps=("${package_dir}"/luci-app-songloft_*_all.ipk)
-          translations=("${package_dir}"/luci-i18n-songloft-zh-cn_*_all.ipk)
+          # IPK 文件名带 _all；APK 原始文件名不包含架构。
+          case "$FORMAT" in
+            ipk)
+              apps=("${package_dir}"/luci-app-songloft_*_all.ipk)
+              translations=("${package_dir}"/luci-i18n-songloft-zh-cn_*_all.ipk)
+              ;;
+            apk)
+              apps=("${package_dir}"/luci-app-songloft-[0-9]*.apk)
+              translations=("${package_dir}"/luci-i18n-songloft-zh-cn-[0-9]*.apk)
+              ;;
+            *)
+              echo "Unsupported package format: $FORMAT" >&2
+              exit 1
+              ;;
+          esac
           if ((${#apps[@]} == 0 || ${#translations[@]} == 0)); then
-            echo "Missing SongLoft LuCI or Chinese translation IPK in ${package_dir}" >&2
+            echo "Missing SongLoft LuCI or Chinese translation ${FORMAT} in ${package_dir}" >&2
             exit 1
           fi
 
           for package in "${apps[@]}" "${translations[@]}"; do
             filename=$(basename "$package")
-            # 保留 all 架构标记，并注明 SDK 版本，避免与其他版本的发布资产重名。
-            release_name="${filename%.ipk}_openwrt-${SDK}.ipk"
+            release_name="$filename"
+            # APK 也标记为 all，便于在 Release 中识别通用包。
+            if [[ "$FORMAT" == apk ]]; then
+              release_name="${filename%.apk}_all.apk"
+            fi
             cp "$package" "/tmp/${release_name}"
             gh release upload "$TAG" "/tmp/${release_name}" --clobber
           done
 
   publish:
     name: Publish and retain the latest openwrt release
-    needs: [openwrt-packages, openwrt-24-luci]
+    needs: [openwrt-packages, openwrt-luci]
     runs-on: ubuntu-latest
     steps:
       # Maintenance scripts come from the workflow revision, not an older release tag.

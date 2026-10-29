@@ -15,6 +15,11 @@
 
 源码从 [songloft-org/songloft](https://github.com/songloft-org/songloft) 指定版本拉取构建，构建过程无需手动下载二进制文件。`luci-app-songloft` 可单独安装，程序可由用户自行部署；若使用本项目的 `songloft` 或 `songloft-lite` 软件包，启动脚本会读取 LuCI 保存的配置。
 
+GitHub 流水线将 LuCI 与 Go 服务端分开构建：
+
+- `luci-app-songloft` 和中文语言包 `luci-i18n-songloft-zh-cn` 均为 `all` 架构，IPK、APK 各构建一次，共发布四个通用包，文件名以 `_all.ipk` / `_all.apk` 结尾。IPK 使用 OpenWrt `24.10.8` SDK，APK 使用 `25.12.5` SDK；按固件的包管理格式选择，通用架构不代表兼容所有固件版本。
+- Go 服务端 `songloft` / `songloft-lite` 使用 OpenWrt `25.12.5` SDK，为 `x86_64`、`aarch64_cortex-a53`、`aarch64_cortex-a72`、`aarch64_generic`、`arm_cortex-a7`、`arm_cortex-a9` 分别构建 APK，下载时需匹配设备架构。当前流水线不构建服务端 IPK。
+
 ## 编译方式
 
 ### 使用 feed
@@ -73,7 +78,7 @@ make package/songloft/compile V=s
 make package/luci-app-songloft/compile V=s
 ```
 
-编译完成后，将生成的 `.ipk` 上传到路由器，通过 `opkg install <包名>.ipk` 安装。
+编译完成后，将生成的软件包上传到路由器。使用 opkg 的固件通过 `opkg install <包名>.ipk` 安装；使用 apk 的固件通过 `apk add --allow-untrusted /tmp/<包名>.apk` 安装本地包。软件包格式由所用源码或 SDK 决定。
 
 ## 配置说明
 
