@@ -5,6 +5,14 @@ on:
     # Daily at 01:00 UTC (09:00 in Asia/Shanghai).
     - cron: '0 1 * * *'
   workflow_dispatch:
+    inputs:
+      web_mode:
+        description: Player Web version policy for this build
+        type: choice
+        options:
+          - strict
+          - latest
+        default: strict
 
 permissions:
   contents: write
@@ -83,6 +91,7 @@ jobs:
     uses: ./.github/workflows/release-entware.yml
     with:
       tag: entware-${{ needs.check.outputs.version }}
+      web_mode: ${{ inputs.web_mode || 'strict' }}
 
   openwrt:
     needs: check
@@ -90,3 +99,4 @@ jobs:
     uses: ./.github/workflows/release-openwrt.yml
     with:
       tag: openwrt-${{ needs.check.outputs.version }}
+      web_mode: ${{ inputs.web_mode || 'strict' }}

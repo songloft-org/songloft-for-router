@@ -7,6 +7,23 @@ on:
         description: Existing release tag to build
         required: true
         type: string
+      web_mode:
+        description: 'Player Web version policy: strict or latest'
+        type: string
+        default: strict
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build (entware-X.Y.Z)
+        required: true
+        type: string
+      web_mode:
+        description: Player Web version policy
+        type: choice
+        options:
+          - strict
+          - latest
+        default: strict
   push:
     tags:
       - 'entware-*'
@@ -27,6 +44,25 @@ jobs:
     name: Create GitHub release
     runs-on: ubuntu-latest
     steps:
+      # Use current maintenance scripts when rebuilding an older release tag.
+      - uses: actions/checkout@v4
+      - name: Checkout package sources at release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          path: package-sources
+      - name: Select and pin player Web for all architectures
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WEB_MODE: ${{ inputs.web_mode || 'strict' }}
+        run: python3 script/prepare-web.py entware --root package-sources --mode "$WEB_MODE"
+      - name: Share prepared package sources
+        uses: actions/upload-artifact@v4
+        with:
+          name: entware-package-sources
+          path: package-sources/entware/songloft/Makefile
+          if-no-files-found: error
+          overwrite: true
       - name: Create release when it does not exist
         env:
           GH_TOKEN: ${{ github.token }}
@@ -55,6 +91,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ env.RELEASE_TAG }}
+
+      - name: Use selected player Web version and hash
+        uses: actions/download-artifact@v4
+        with:
+          name: entware-package-sources
+          path: entware/songloft
 
       - name: Create artifact directory
         run: mkdir -p artifacts

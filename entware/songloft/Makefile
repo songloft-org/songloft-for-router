@@ -23,8 +23,10 @@ PKG_LICENSE_FILES:=LICENSE
 
 PKG_BUILD_PARALLEL:=1
 
-SONGLOFT_WEB_SOURCE:=songloft-web-embedded-v$(PKG_VERSION).tar.gz
-SONGLOFT_WEB_URL:=https://github.com/songloft-org/songloft-player/releases/download/v$(PKG_VERSION)
+# 构建前运行 script/prepare-web.py 选择严格匹配或最新稳定版。
+SONGLOFT_WEB_VERSION:=2.13.6
+SONGLOFT_WEB_SOURCE:=songloft-web-embedded-v$(SONGLOFT_WEB_VERSION).tar.gz
+SONGLOFT_WEB_URL:=https://github.com/songloft-org/songloft-player/releases/download/v$(SONGLOFT_WEB_VERSION)
 SONGLOFT_WEB_URL_FILE:=songloft-web-embedded.tar.gz
 SONGLOFT_WEB_HASH:=e094cbb2a493b1d9028f946dd6ddec66b8b35808974e0b74fcdc3ea1ab9fc27e
 

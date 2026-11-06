@@ -12,23 +12,43 @@
 
 ## 更新打包版本
 
-运行以下脚本，自动查找 SongLoft 最新稳定版本标签，并同步更新 Entware 和 OpenWrt 的服务端版本、源码 SHA256、`pkg/tag` 子模块固定提交及 SHA256、同版本内嵌 Web 资源 SHA256：
+运行以下脚本，自动查找 SongLoft 最新稳定版本标签，并同步更新 Entware 和 OpenWrt 的服务端版本、源码 SHA256、`pkg/tag` 子模块固定提交及 SHA256。更新检查只关注服务端，不查询 player Release：
 
 ```sh
 ./script/update-version.py
 # 指定版本会强制下载检查，即使当前版本相同：
 ./script/update-version.py 2.13.2
-# 下载 Web 压缩包，额外验证 GitHub 提供的 SHA256：
-./script/update-version.py 2.13.2 --verify-web
 ```
 
-不传版本号时，仅先查询最新稳定版本标签；只有上游版本更高时才获取资源并更新 Makefile。版本相同时跳过全部后续步骤，不下载资源、不检查 Release、不打标签、不编译；也不会自动降级。显式传入版本号仍可强制检查同版本，单独使用 `--verify-web` 不会绕过跳过逻辑。
+不传版本号时，仅先查询最新稳定版本标签；只有上游服务端版本更高时才获取源码并更新 Makefile。版本相同时跳过全部后续步骤，不下载资源、不检查 Release、不打标签、不编译；也不会自动降级。player 单独更新不会触发编译。显式传入版本号仍可强制检查同版本。
 
-准备更新时，只检查打包需要的资源：主源码和子模块压缩包必须能完整下载，同版本正式前端 Release 的 `songloft-web-embedded.tar.gz` 必须已上传完成且大小非零。资源缺失、上传未完成或下载失败时，本次检查直接失败，不写入 Makefile，也不触发后续发布；下次检查可以重试。无需等待上游其他平台的产物或整个发布工作流结束。
+准备更新时，主源码和子模块压缩包必须能完整下载。下载失败时不写入 Makefile，也不触发后续发布；下次检查可以重试。脚本在全部源码下载和校验成功后才写入两个 Makefile，升级版本时将 `PKG_RELEASE` 重置为 `1`；强制检查同版本会保留打包修订号。
 
-需要 Python 3.6+、curl 和 GitHub 网络访问；可通过 `GITHUB_TOKEN` 提高 API 限额。源码与子模块均从 codeload 压缩包下载，不使用 Git 拉取。Web 资源优先使用 GitHub 发布资产的 SHA256，未提供时自动下载计算；构建时 SDK 会校验资源。脚本在所有下载和校验成功后才写入两个 Makefile，升级版本时将 `PKG_RELEASE` 重置为 `1`；强制检查同版本会保留打包修订号。对应版本的 Web 发布资源必须已上传。
+编译时选择 `web_mode`，默认 `strict`（严格匹配）：
 
-GitHub Actions 的 `Check upstream and build router packages` 每天北京时间 04:00 自动检查一次，也可在 Actions 页面点击 **Run workflow** 手动检查。只有确认上游版本更高、所需资源获取成功且两个 Makefile 更新成功，才继续提交配置、创建 `entware-版本号` 和 `openwrt-版本号` 标签并检查对应 Release。正式 Release 已存在时跳过编译；Release 缺失或为草稿时调用对应编译工作流，无需额外配置 PAT。资源获取或更新失败时，后续发布步骤全部跳过。手动推送这两类标签也会触发编译。
+| 模式 | player Web 选择规则 |
+| --- | --- |
+| `strict`（默认） | 使用与服务端相同版本标签的稳定 player Release；缺失则构建失败，不自动回退 |
+| `latest` | 使用构建准备时 GitHub `/releases/latest` 返回的最新稳定 player Release，允许前后端版本号不同 |
+
+两种模式均要求 `songloft-web-embedded.tar.gz` 已上传完成且大小非零。每个平台在启动架构矩阵前解析一次版本和 SHA256，将准备好的 Makefile 共享给所有架构；SDK 使用固定版本的 URL 下载并校验，不使用可变化的 `latest/download` 地址。准备结果只用于本次构建，不提交回仓库。同一服务端版本选择 `latest` 重建时，可能包含更新的前端；该模式不保证 API 兼容。
+
+本地编译前先准备对应平台的 Web 配置：
+
+```sh
+# 默认严格匹配服务端版本：
+python3 script/prepare-web.py entware
+# 使用最新稳定 player：
+python3 script/prepare-web.py openwrt --mode latest
+# 下载 Web 压缩包，额外验证 GitHub 提供的 SHA256：
+python3 script/prepare-web.py openwrt --mode strict --verify-web
+```
+
+需要 Python 3.6+、curl 和 GitHub 网络访问；可通过 `GITHUB_TOKEN` 提高 API 限额。源码与子模块均从 codeload 压缩包下载，不使用 Git 拉取。Web 资源优先使用 GitHub 发布资产的 SHA256，未提供时自动下载计算；构建时 SDK 会校验资源。原 `update-version.py --verify-web` 已移至 `prepare-web.py --verify-web`。
+
+GitHub Actions 的 `Check upstream and build router packages` 每天北京时间 09:00 自动检查一次，定时任务使用 `strict`；也可在 Actions 页面点击 **Run workflow**，选择 `web_mode`。只有确认服务端版本更高、源码获取成功且两个 Makefile 更新成功，才继续提交配置、创建 `entware-版本号` 和 `openwrt-版本号` 标签并检查对应 Release。正式 Release 已存在时跳过编译；Release 缺失或为草稿时调用对应编译工作流，无需额外配置 PAT。源码获取或更新失败时，后续发布步骤全部跳过。手动推送这两类标签也会触发编译，使用默认 `strict`。
+
+两个平台的 `Release ... packages` 工作流也支持 **Run workflow**：填写已有发布标签并选择 `web_mode`，可在服务端版本不变时主动重建，或在严格匹配失败后改用 `latest`。构建准备失败（例如严格匹配的 player Release 缺失）会阻止该平台后续编译和发布。
 
 新版本先创建草稿 Release，等该平台全部构建及上传成功后才正式发布，并删除该平台较旧版本的 Release（含附件）及对应标签，OpenWrt、Entware 各保留一个最新成功版本。失败构建保留草稿与上一成功版本，可手动重跑失败任务；每日检查不会因同版本 Release 缺失或为草稿而重新编译。Merlin 发布不参与清理。定时工作流需存在于默认分支，仓库规则须允许 `GITHUB_TOKEN` 写入版本提交、标签和 Release。
 
@@ -36,7 +56,7 @@ GitHub Actions 的 `Check upstream and build router packages` 每天北京时间
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 test/update-version.test.py
-PYTHONDONTWRITEBYTECODE=1 python3 test/prune-releases.test.py
+PYTHONDONTWRITEBYTECODE=1 python3 test/prepare-web.test.py
 ```
 
 ## 安装文档
