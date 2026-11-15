@@ -5,12 +5,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=songloft
-PKG_VERSION:=2.13.9
+PKG_VERSION:=2.13.10
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/songloft-org/songloft/tar.gz/v$(PKG_VERSION)?
-PKG_HASH:=41ac569709d713b54a5c23ede65fa556e4d16256ba206560190f4d2b13467a1f
+PKG_HASH:=ec2ecdb7e9f67820060259af0c3573db6329930968cc8e70eb54f196f7021c08
 
 # GitHub 源码压缩包不包含子模块；单独下载上游锁定的 pkg/tag 提交。
 SONGLOFT_TAG_VERSION:=64e12e525cc5c9a5ee66826c98dbaed42534af8b
